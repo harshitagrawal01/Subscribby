@@ -41,7 +41,7 @@ export function ResetPasswordPage({ portal }: { portal: Portal }) {
     } catch (error) {
       setFormError(
         isApiError(error) && error.code === 'TOKEN_INVALID'
-          ? 'This link is wrong, already used or expired. Ask for a new one.'
+          ? 'This link has expired or was already used. Ask for a new one below.'
           : isApiError(error)
             ? error.message
             : 'Something went wrong. Try again.',
@@ -52,17 +52,17 @@ export function ResetPasswordPage({ portal }: { portal: Portal }) {
   return (
     <AuthShell
       portal={portal}
-      title="Set a new password"
+      title="Choose a new password"
       footer={
         <Anchor component={Link} to={paths.forgot}>
-          Need a new link?
+          Email me a new link
         </Anchor>
       }
     >
       <form onSubmit={onSubmit} noValidate>
         <Stack>
           {formError && (
-            <Alert color="red" icon={<IconAlertCircle size={16} />}>
+            <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
               {formError}
             </Alert>
           )}

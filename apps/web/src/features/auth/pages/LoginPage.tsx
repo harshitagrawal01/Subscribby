@@ -33,8 +33,9 @@ export function LoginPage({ portal }: { portal: Portal }) {
       if (user.mustChangePassword) navigate(paths.setPassword, { replace: true })
       else navigate(from ?? homePathFor(user), { replace: true })
     } catch (error) {
-      if (isApiError(error) && error.code === 'INVALID_CREDENTIALS') setFormError('Wrong email or password.')
-      else if (isApiError(error) && error.code === 'ACCOUNT_DISABLED') setFormError('This account is disabled. Contact your admin.')
+      if (isApiError(error) && error.code === 'INVALID_CREDENTIALS')
+        setFormError("That email and password don't match. Check for typos, or reset your password.")
+      else if (isApiError(error) && error.code === 'ACCOUNT_DISABLED') setFormError('This account has been switched off. Ask an admin to turn it back on.')
       else setFormError(isApiError(error) ? error.message : 'Something went wrong. Try again.')
     }
   })
@@ -42,41 +43,43 @@ export function LoginPage({ portal }: { portal: Portal }) {
   return (
     <AuthShell
       portal={portal}
-      title={portal === 'staff' ? 'Staff login' : 'Log in'}
-      subtitle={portal === 'staff' ? 'For admin, internal staff and the finance lead.' : 'Manage your subscriptions and invoices.'}
+      title={portal === 'staff' ? 'Staff log in' : 'Log in to Subscribby'}
+      subtitle={portal === 'staff' ? 'Staff accounts are set up by your admin.' : 'See your subscriptions, invoices and payments.'}
       footer={
         portal === 'customer' ? (
           <>
-            New here?{' '}
-            <Anchor component={Link} to="/signup">
-              Create an account
+            First time here?{' '}
+            <Anchor component={Link} to="/signup" fw={500}>
+              Create your account
             </Anchor>
           </>
         ) : (
-          'Staff accounts are created by an admin. There is no sign-up here.'
+          'Locked out? Ask an admin for a new temporary password.'
         )
       }
     >
       <form onSubmit={onSubmit} noValidate>
         <Stack>
           {formError && (
-            <Alert color="red" icon={<IconAlertCircle size={16} />}>
+            <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
               {formError}
             </Alert>
           )}
           <TextInput label="Email" type="email" autoComplete="email" {...register('email')} error={formState.errors.email?.message} />
-          <PasswordInput
-            label="Password"
-            autoComplete="current-password"
-            {...register('password')}
-            error={formState.errors.password?.message}
-          />
-          <Group justify="flex-end">
-            <Anchor component={Link} to={paths.forgot} size="sm">
-              Forgot password?
-            </Anchor>
-          </Group>
-          <Button type="submit" loading={formState.isSubmitting} fullWidth>
+          <div>
+            <PasswordInput
+              label="Password"
+              autoComplete="current-password"
+              {...register('password')}
+              error={formState.errors.password?.message}
+            />
+            <Group justify="flex-end" mt={6}>
+              <Anchor component={Link} to={paths.forgot} size="sm">
+                Forgot your password?
+              </Anchor>
+            </Group>
+          </div>
+          <Button type="submit" loading={formState.isSubmitting} fullWidth mt={4}>
             Log in
           </Button>
         </Stack>

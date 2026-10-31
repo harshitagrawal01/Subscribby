@@ -2,8 +2,210 @@ body {
   margin: 0;
 }
 
-/* Tabular numbers keep money columns aligned. */
+/* Titles in Fraunces with its soft, slightly irregular shapes. */
+h1,
+h2,
+h3,
+.wordmark {
+  font-variation-settings: 'SOFT' 100, 'WONK' 1, 'opsz' 48;
+}
+.wordmark {
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-weight: 640;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'ss02';
+}
+
+/* Money and counts: same face as the text, with aligned digits. */
 .num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* IDs (SUB/2026/0042, INV/2026/0311): monospaced, a touch smaller. */
+.mono {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.93em;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--mantine-color-ink-6);
+  outline-offset: 2px;
+}
+
+/* Data tables: quiet headers, paper hover, clickable rows. */
+.data-table thead th {
+  font-weight: 500;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  background: var(--mantine-color-body);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  white-space: nowrap;
+}
+.data-table tbody tr {
+  border-bottom: 1px solid var(--mantine-color-gray-1);
+}
+.data-table tbody tr:last-child {
+  border-bottom: 0;
+}
+.data-table tbody tr.row-link {
+  cursor: pointer;
+}
+.data-table tbody tr.row-link:hover {
+  background: var(--mantine-color-body);
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md);
+}
+
+/* Auth pages: a soft sheet for the form, receipts beside it on wide screens. */
+.auth-sheet {
+  background: #fff;
+  border-radius: 18px;
+  padding: 40px 40px 36px;
+  box-shadow: 0 1px 0 rgba(60, 45, 20, 0.04), 0 24px 48px -28px rgba(60, 45, 20, 0.35);
+}
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+  gap: 72px;
+  align-items: center;
+  max-width: 1100px;
+  margin: 0 auto;
+  min-height: calc(100vh - 140px);
+  padding: 24px 0;
+}
+.auth-aside {
+  display: flex;
+  justify-content: center;
+}
+@media (max-width: 62em) {
+  .auth-layout {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    justify-items: center;
+    padding-top: 28px;
+  }
+  .auth-aside {
+    display: none;
+  }
+}
+@media (max-width: 36em) {
+  .auth-sheet {
+    padding: 28px 22px;
+    border-radius: 14px;
+  }
+}
+
+/* Staff console */
+.page {
+  max-width: 1200px;
+  padding: 28px 32px 48px;
+}
+@media (max-width: 48em) {
+  .page {
+    padding: 20px 16px 40px;
+  }
+}
+.side-link {
+  border-radius: var(--mantine-radius-sm);
+  padding: 7px 10px;
+  color: var(--mantine-color-gray-8);
+  font-size: var(--mantine-font-size-md);
+}
+.side-link:hover {
+  background: var(--mantine-color-body);
+}
+.side-link[data-active] {
+  background: var(--mantine-color-ink-0);
+  color: var(--mantine-color-ink-8);
+  font-weight: 500;
+}
+.side-link[data-active] svg {
+  color: var(--mantine-color-ink-8);
+}
+.user-menu-button:hover {
+  background: var(--mantine-color-body);
+}
+
+/* Customer portal top navigation */
+.top-link {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  font-size: var(--mantine-font-size-md);
+  color: var(--mantine-color-dimmed);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.top-link:hover {
+  color: var(--mantine-color-text);
+}
+.top-link.active {
+  color: var(--mantine-color-text);
+  font-weight: 500;
+  border-bottom-color: var(--mantine-color-ink-8);
+}
+
+/* Dashboard: hero + supporting stats, then the overdue table + payments. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+.dash-grid > section {
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 62em) {
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Underline filter tabs with quiet counts. */
+.filter-tabs {
+  display: flex;
+  gap: 22px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  overflow-x: auto;
+}
+.filter-tab {
+  all: unset;
+  cursor: pointer;
+  padding: 12px 0 11px;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-dimmed);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+.filter-tab:hover {
+  color: var(--mantine-color-text);
+}
+.filter-tab[aria-selected='true'] {
+  color: var(--mantine-color-text);
+  font-weight: 500;
+  border-bottom-color: var(--mantine-color-ink-8);
+}
+.filter-tab .count {
+  margin-left: 6px;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-gray-5);
 }

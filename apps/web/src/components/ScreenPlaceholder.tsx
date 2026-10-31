@@ -1,4 +1,4 @@
-import { Badge, Card, Code, Group, List, Stack, Text } from '@mantine/core'
+import { Code, Group, List, Stack, Text } from '@mantine/core'
 import { PageHeader } from './PageHeader'
 
 interface Props {
@@ -14,31 +14,33 @@ interface Props {
 export function ScreenPlaceholder({ title, who, todo, endpoints }: Props) {
   return (
     <>
-      <PageHeader title={title} description={`Who sees this: ${who}`} actions={<Badge color="orange">To build</Badge>} />
-      <Card withBorder radius="md" p="lg">
-        <Stack gap="md">
+      <PageHeader title={title} description={`Not built yet · ${who}`} />
+      <div className="panel" style={{ padding: 24, maxWidth: 760 }}>
+        <Stack gap="lg">
           <div>
-            <Text fw={600} mb={6}>
-              On this screen
+            <Text fw={500} mb={8}>
+              This screen needs
             </Text>
-            <List size="sm" spacing={4}>
+            <List size="sm" spacing={6} c="dimmed">
               {todo.map((item) => (
                 <List.Item key={item}>{item}</List.Item>
               ))}
             </List>
           </div>
           <div>
-            <Text fw={600} mb={6}>
-              Endpoints
+            <Text fw={500} mb={8}>
+              API
             </Text>
             <Group gap={6}>
               {endpoints.map((e) => (
-                <Code key={e}>{e}</Code>
+                <Code key={e} fz="xs">
+                  {e}
+                </Code>
               ))}
             </Group>
           </div>
         </Stack>
-      </Card>
+      </div>
     </>
   )
 }

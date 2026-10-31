@@ -15,11 +15,11 @@ export const config = {
   // Secret path of the staff console (e.g. /q7m2xk9vd4pt8wzr). Generate with `npm run staff-path` in apps/web.
   staffPortalPath: '/' + (process.env.STAFF_PORTAL_PATH || '/staff').replace(/^\/+|\/+$/g, ''),
   company: {
-    name: process.env.COMPANY_NAME || 'Brightloop Software',
+    name: process.env.COMPANY_NAME || 'Subscribby',
     address:
       process.env.COMPANY_ADDRESS ||
       '4th Floor, Prestige Tech Park, Outer Ring Road, Bengaluru, Karnataka 560103, India',
     taxId: process.env.COMPANY_TAX_ID || '29AAKCB4821M1Z7',
-    email: process.env.COMPANY_EMAIL || 'billing@brightloop.test',
+    email: process.env.COMPANY_EMAIL || 'billing@subscribby.test',
   },
 };

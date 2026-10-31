@@ -30,18 +30,18 @@ export function ForgotPasswordPage({ portal }: { portal: Portal }) {
   return (
     <AuthShell
       portal={portal}
-      title="Forgot password"
-      subtitle="We'll email you a link to set a new password. It works once and expires in 30 minutes."
+      title="Reset your password"
+      subtitle="We'll email you a link to choose a new one. It works once, for 30 minutes."
       footer={
         <Anchor component={Link} to={paths.login}>
-          Back to login
+          Back to log in
         </Anchor>
       }
     >
       {sentTo ? (
         <Stack>
-          <Alert color="teal" icon={<IconMailCheck size={16} />}>
-            If an account exists for <b>{sentTo}</b>, a reset link is on its way.
+          <Alert color="green" variant="light" icon={<IconMailCheck size={16} />}>
+            If <b>{sentTo}</b> has an account, the link is on its way. Check spam if it hasn't arrived in a few minutes.
           </Alert>
           {devResetUrl && (
             <Text size="xs" c="dimmed">
@@ -57,7 +57,7 @@ export function ForgotPasswordPage({ portal }: { portal: Portal }) {
           <Stack>
             <TextInput label="Email" type="email" autoComplete="email" {...register('email')} error={formState.errors.email?.message} />
             <Button type="submit" loading={formState.isSubmitting} fullWidth>
-              Send reset link
+              Email me a reset link
             </Button>
           </Stack>
         </form>

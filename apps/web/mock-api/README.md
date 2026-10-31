@@ -33,7 +33,7 @@ Android emulator: `http://10.0.2.2:4000/api/v1`. Real phone: use your laptop's L
 | `STAFF_PORTAL_PATH` | `/staff` | Secret staff console path used in staff reset-password links. Set by `npm run staff-path` in `apps/web` (writes `mock-api/.env`) |
 | `CUSTOMER_SELF_SERVICE` | `false` | Turns on portal pause / resume / renew / close (spec section 13). When off, those routes return `403 FORBIDDEN` |
 | `MOCK_TODAY` | (unset) | Mock only. Pretends "today" (IST) is this `YYYY-MM-DD` date, for both the seed and the business rules |
-| `COMPANY_NAME`, `COMPANY_ADDRESS`, `COMPANY_TAX_ID`, `COMPANY_EMAIL` | Brightloop Software, … | Company details returned by `/meta` and printed on invoices |
+| `COMPANY_NAME`, `COMPANY_ADDRESS`, `COMPANY_TAX_ID`, `COMPANY_EMAIL` | Subscribby, … | Company details returned by `/meta` and printed on invoices |
 
 ## Test accounts
 

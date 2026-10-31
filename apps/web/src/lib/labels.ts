@@ -1,27 +1,30 @@
+import { tokens } from '@/theme'
 import type { InvoiceStatus, PaymentMethod, Role, SubscriptionStatus } from './api/types'
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Admin',
-  staff: 'Internal Staff',
-  finance: 'Finance Lead',
+  staff: 'Internal staff',
+  finance: 'Finance lead',
   customer: 'Customer',
 }
 
+const s = tokens.status
+
 export const SUBSCRIPTION_STATUS: Record<SubscriptionStatus, { label: string; color: string }> = {
-  draft: { label: 'Draft', color: 'gray' },
-  quotation: { label: 'Quotation', color: 'blue' },
-  confirmed: { label: 'Confirmed', color: 'cyan' },
-  active: { label: 'Active', color: 'green' },
-  paused: { label: 'Paused', color: 'yellow' },
-  closed: { label: 'Closed', color: 'dark' },
+  draft: { label: 'Draft', color: s.draft },
+  quotation: { label: 'Quotation', color: s.warn },
+  confirmed: { label: 'Confirmed', color: s.info },
+  active: { label: 'Active', color: s.good },
+  paused: { label: 'Paused', color: s.paused },
+  closed: { label: 'Closed', color: s.closed },
 }
 
 export const INVOICE_STATUS: Record<InvoiceStatus | 'overdue', { label: string; color: string }> = {
-  draft: { label: 'Draft', color: 'gray' },
-  confirmed: { label: 'Confirmed', color: 'blue' },
-  paid: { label: 'Paid', color: 'green' },
-  cancelled: { label: 'Cancelled', color: 'dark' },
-  overdue: { label: 'Overdue', color: 'red' },
+  draft: { label: 'Draft', color: s.draft },
+  confirmed: { label: 'Unpaid', color: s.info },
+  paid: { label: 'Paid', color: s.good },
+  cancelled: { label: 'Cancelled', color: s.closed },
+  overdue: { label: 'Overdue', color: s.bad },
 }
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {

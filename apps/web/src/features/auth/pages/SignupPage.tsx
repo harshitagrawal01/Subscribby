@@ -6,7 +6,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
 import { z } from 'zod'
 import { isApiError } from '@/lib/api/client'
-import { emailSchema, passwordSchema } from '@/lib/validation'
+import { emailSchema, passwordSchema, trimmed } from '@/lib/validation'
 import { AuthShell } from '../components/AuthShell'
 import { PasswordRules } from '../components/PasswordRules'
 import { applyServerErrors } from '../form-errors'
@@ -14,8 +14,8 @@ import { useAuth } from '../useAuth'
 
 const schema = z
   .object({
-    name: z.string().trim().min(2, 'Enter your name'),
-    companyName: z.string().trim().optional(),
+    name: trimmed().min(2, 'Enter your full name'),
+    companyName: trimmed().optional(),
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string(),
@@ -41,7 +41,7 @@ export function SignupPage() {
       navigate('/portal', { replace: true })
     } catch (error) {
       if (isApiError(error) && error.code === 'EMAIL_TAKEN') {
-        setError('email', { message: 'An account with this email already exists.' })
+        setError('email', { message: 'This email already has an account. Log in instead, or reset the password.' })
         return
       }
       setFormError(applyServerErrors(error, setError, ['name', 'email', 'password']))
@@ -51,12 +51,12 @@ export function SignupPage() {
   return (
     <AuthShell
       portal="customer"
-      title="Create your account"
-      subtitle="See and manage your subscriptions without emailing anyone."
+      title="Create an account"
+      subtitle="Use the email your invoices go to, and your subscriptions show up straight away."
       footer={
         <>
           Already have an account?{' '}
-          <Anchor component={Link} to="/login">
+          <Anchor component={Link} to="/login" fw={500}>
             Log in
           </Anchor>
         </>
@@ -65,12 +65,12 @@ export function SignupPage() {
       <form onSubmit={onSubmit} noValidate>
         <Stack>
           {formError && (
-            <Alert color="red" icon={<IconAlertCircle size={16} />}>
+            <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
               {formError}
             </Alert>
           )}
           <TextInput label="Full name" autoComplete="name" {...register('name')} error={formState.errors.name?.message} />
-          <TextInput label="Company" description="Optional" autoComplete="organization" {...register('companyName')} />
+          <TextInput label="Company name" description="Leave blank if you're buying for yourself" autoComplete="organization" {...register('companyName')} />
           <TextInput label="Email" type="email" autoComplete="email" {...register('email')} error={formState.errors.email?.message} />
           <div>
             <PasswordInput

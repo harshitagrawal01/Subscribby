@@ -66,7 +66,7 @@ export function seed() {
     db.products.push(p);
     return p;
   };
-  const crm = addProduct('Brightloop CRM', 'service', 400000, 90000, 'Core CRM seat', [['Brand', 'Odoo', 56000], ['Brand', 'Generic', 0]]);
+  const crm = addProduct('CRM Suite', 'service', 400000, 90000, 'Core CRM seat', [['Brand', 'Odoo', 56000], ['Brand', 'Generic', 0]]);
   const [odoo, generic] = crm.variants;
   const analytics = addProduct('Analytics add-on', 'addon', 600000, 150000, 'Dashboards and scheduled reports');
   const storage = addProduct('Extra storage add-on', 'addon', 150000, 30000, '100 GB of extra document storage');

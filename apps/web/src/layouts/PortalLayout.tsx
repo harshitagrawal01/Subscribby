@@ -1,34 +1,25 @@
-import { AppShell, Badge, Button, Container, Group, Text } from '@mantine/core'
+import { AppShell, Container, Group } from '@mantine/core'
 import { NavLink as RouterNavLink, Outlet } from 'react-router'
-import { config } from '@/config'
+import { Logo } from '@/components/Logo'
 import { UserMenu } from './UserMenu'
 
 const LINKS = [
-  { label: 'My subscriptions', to: '/portal/subscriptions' },
-  { label: 'My invoices', to: '/portal/invoices' },
+  { label: 'Subscriptions', to: '/portal/subscriptions' },
+  { label: 'Invoices', to: '/portal/invoices' },
 ]
 
 export function PortalLayout() {
   return (
-    <AppShell header={{ height: 56 }} padding="lg">
-      <AppShell.Header>
-        <Container size="lg" h="100%">
-          <Group h="100%" justify="space-between">
-            <Group gap="lg">
-              <Group gap="xs">
-                <Text fw={800}>{config.appName}</Text>
-                <Badge variant="light" size="sm">
-                  Customer portal
-                </Badge>
-              </Group>
-              <Group gap={4} visibleFrom="xs">
+    <AppShell header={{ height: 60 }} padding={0}>
+      <AppShell.Header bg="#fff">
+        <Container size={1040} h="100%">
+          <Group h="100%" justify="space-between" wrap="nowrap">
+            <Group gap={36} h="100%" wrap="nowrap">
+              <Logo size="sm" />
+              <Group gap={24} h="100%" visibleFrom="xs" component="nav">
                 {LINKS.map((link) => (
-                  <RouterNavLink key={link.to} to={link.to} style={{ textDecoration: 'none' }}>
-                    {({ isActive }) => (
-                      <Button variant={isActive ? 'light' : 'subtle'} color={isActive ? 'violet' : 'gray'} size="compact-sm">
-                        {link.label}
-                      </Button>
-                    )}
+                  <RouterNavLink key={link.to} to={link.to} className="top-link">
+                    {link.label}
                   </RouterNavLink>
                 ))}
               </Group>
@@ -37,8 +28,8 @@ export function PortalLayout() {
           </Group>
         </Container>
       </AppShell.Header>
-      <AppShell.Main bg="gray.0">
-        <Container size="lg">
+      <AppShell.Main>
+        <Container size={1040} py={32}>
           <Outlet />
         </Container>
       </AppShell.Main>

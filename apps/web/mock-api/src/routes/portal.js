@@ -81,7 +81,7 @@ router.post('/portal/subscriptions/:id/reject', CUSTOMER, (req, res) => {
 // Self-service, behind CUSTOMER_SELF_SERVICE (default false → 403 FORBIDDEN).
 function selfService(path, fn) {
   router.post(`/portal/subscriptions/:id/${path}`, CUSTOMER, (req, res) => {
-    if (!config.customerSelfService) throw errors.forbidden('Self-service changes are turned off; contact Brightloop');
+    if (!config.customerSelfService) throw errors.forbidden('Self-service changes are turned off. Contact support to make this change.');
     const sub = ownSub(req);
     fn(sub, req);
     send(res, serializeSubDetail(sub, req.user, { portal: true }));

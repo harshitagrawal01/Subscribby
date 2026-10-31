@@ -44,8 +44,8 @@ export function SetPasswordPage({ portal }: { portal: Portal }) {
   return (
     <AuthShell
       portal={portal}
-      title="Set your password"
-      subtitle={`Welcome${user ? `, ${user.name.split(' ')[0]}` : ''}. Replace your temporary password to continue.`}
+      title="Choose your own password"
+      subtitle={`${user ? `${user.name.split(' ')[0]}, you're` : "You're"} logged in with a temporary password from your admin. Pick one only you know.`}
       footer={
         <Anchor component="button" type="button" onClick={logout}>
           Log out
@@ -55,7 +55,7 @@ export function SetPasswordPage({ portal }: { portal: Portal }) {
       <form onSubmit={onSubmit} noValidate>
         <Stack>
           {formError && (
-            <Alert color="red" icon={<IconAlertCircle size={16} />}>
+            <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
               {formError}
             </Alert>
           )}
@@ -82,7 +82,7 @@ export function SetPasswordPage({ portal }: { portal: Portal }) {
             error={formState.errors.confirmPassword?.message}
           />
           <Button type="submit" loading={formState.isSubmitting} fullWidth>
-            Save and continue
+            Save password
           </Button>
         </Stack>
       </form>

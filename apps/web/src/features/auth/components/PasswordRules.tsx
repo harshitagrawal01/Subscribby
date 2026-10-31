@@ -1,27 +1,27 @@
-import { List, ThemeIcon } from '@mantine/core'
-import { IconCheck, IconPoint } from '@tabler/icons-react'
+import { SimpleGrid, Text } from '@mantine/core'
+import { IconCheck } from '@tabler/icons-react'
 import { PASSWORD_RULES } from '@/lib/validation'
+import { tokens } from '@/theme'
 
-/** Live checklist under a new-password field. */
+/** Quiet live checklist under a new-password field. */
 export function PasswordRules({ value }: { value: string }) {
   return (
-    <List spacing={2} size="xs" center>
+    <SimpleGrid cols={2} spacing={4} verticalSpacing={2} aria-live="polite">
       {PASSWORD_RULES.map((rule) => {
         const ok = rule.test(value)
         return (
-          <List.Item
-            key={rule.id}
-            c={ok ? 'teal' : 'dimmed'}
-            icon={
-              <ThemeIcon size={14} radius="xl" color={ok ? 'teal' : 'gray'} variant={ok ? 'filled' : 'light'}>
-                {ok ? <IconCheck size={10} /> : <IconPoint size={10} />}
-              </ThemeIcon>
-            }
-          >
+          <Text key={rule.id} size="xs" c={ok ? tokens.status.good : tokens.faint} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {ok ? (
+              <IconCheck size={12} stroke={2} />
+            ) : (
+              <span aria-hidden style={{ width: 12, display: 'inline-flex', justifyContent: 'center' }}>
+                ·
+              </span>
+            )}
             {rule.label}
-          </List.Item>
+          </Text>
         )
       })}
-    </List>
+    </SimpleGrid>
   )
 }

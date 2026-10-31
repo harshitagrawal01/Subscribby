@@ -1,4 +1,4 @@
-import { Button, Card, Group, Pagination, Select, Table, Tabs, Text, TextInput } from '@mantine/core'
+import { Button, Group, Select, Table, Text, TextInput } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { IconPlus, IconSearch } from '@tabler/icons-react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
@@ -14,10 +14,11 @@ import { formatDate, formatMoney } from '@/lib/format'
 import { SUBSCRIPTION_STATUS } from '@/lib/labels'
 
 const STATUSES = Object.keys(SUBSCRIPTION_STATUS) as SubscriptionStatus[]
+const PAGE_SIZE = 20
 
 /**
  * Reference pattern for list screens: filters live in the URL (shareable, survive refresh),
- * the server paginates, and status tab counts come from meta.statusCounts.
+ * the server paginates, and status counts come from meta.statusCounts.
  */
 export function SubscriptionsPage() {
   const { user } = useAuth()
@@ -26,9 +27,9 @@ export function SubscriptionsPage() {
   const status = (params.get('status') as SubscriptionStatus | null) ?? undefined
   const planId = params.get('planId') ?? undefined
   const page = Number(params.get('page') ?? 1)
-  const [search] = useDebouncedValue(params.get('search') ?? '', 300)
+  const [search] = useDebouncedValue((params.get('search') ?? '').trim(), 300)
 
-  const query = { status, planId, page, limit: 20, search: search || undefined, sort: '-createdAt' }
+  const query = { status, planId, page, limit: PAGE_SIZE, search: search || undefined, sort: '-createdAt' }
   const list = useQuery({
     queryKey: ['subscriptions', query],
     queryFn: () => subscriptionsApi.list(query),
@@ -46,65 +47,71 @@ export function SubscriptionsPage() {
     setParams(next, { replace: true })
   }
 
-  const counts = list.data?.meta.statusCounts ?? {}
-  const total = Object.values(counts).reduce((a, b) => a + (b ?? 0), 0)
+  const meta = list.data?.meta
+  const counts = meta?.statusCounts ?? {}
+  const total = Object.values(counts).reduce<number>((a, b) => a + (b ?? 0), 0)
+  const hasFilters = Boolean(status || planId || search)
+  const firstRow = meta ? (meta.page - 1) * meta.limit + 1 : 0
+  const lastRow = meta ? Math.min(meta.page * meta.limit, meta.total) : 0
 
   return (
     <>
       <PageHeader
         title="Subscriptions"
-        description="Every quotation and subscription, from draft to closed."
+        description="Quotations and subscriptions for every customer, newest first."
         actions={
           user?.role !== 'finance' && (
-            <Button leftSection={<IconPlus size={16} />} onClick={() => navigate(staffPath('/subscriptions/new'))}>
-              New subscription
+            <Button leftSection={<IconPlus size={16} stroke={1.75} />} onClick={() => navigate(staffPath('/subscriptions/new'))}>
+              New quotation
             </Button>
           )
         }
       />
 
-      <Card withBorder radius="md" p={0}>
-        <Tabs value={status ?? 'all'} onChange={(v) => update({ status: v === 'all' ? undefined : (v ?? undefined) })}>
-          <Tabs.List px="md" pt="xs">
-            <Tabs.Tab value="all">All ({total})</Tabs.Tab>
-            {STATUSES.map((s) => (
-              <Tabs.Tab key={s} value={s}>
-                {SUBSCRIPTION_STATUS[s].label} ({counts[s] ?? 0})
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </Tabs>
+      <div className="panel">
+        <div className="filter-tabs" role="tablist" aria-label="Filter by status">
+          <button className="filter-tab" role="tab" aria-selected={!status} onClick={() => update({ status: undefined })}>
+            All<span className="count">{total}</span>
+          </button>
+          {STATUSES.map((s) => (
+            <button key={s} className="filter-tab" role="tab" aria-selected={status === s} onClick={() => update({ status: s })}>
+              {SUBSCRIPTION_STATUS[s].label}
+              <span className="count">{counts[s] ?? 0}</span>
+            </button>
+          ))}
+        </div>
 
-        <Group p="md" gap="sm">
+        <Group px={20} py={12} gap="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
           <TextInput
-            placeholder="Search number or customer"
-            leftSection={<IconSearch size={16} />}
+            aria-label="Search"
+            placeholder="Search by number or customer"
+            leftSection={<IconSearch size={15} stroke={1.5} />}
             defaultValue={params.get('search') ?? ''}
-            onChange={(e) => update({ search: e.currentTarget.value || undefined })}
-            w={280}
+            onChange={(e) => update({ search: e.currentTarget.value.trim() || undefined })}
+            w={300}
           />
           <Select
-            placeholder="All plans"
+            aria-label="Plan"
+            placeholder="Any plan"
             clearable
             data={plans.data?.data.map((p) => ({ value: p.id, label: p.name })) ?? []}
             value={planId ?? null}
             onChange={(v) => update({ planId: v ?? undefined })}
-            w={220}
+            w={200}
           />
         </Group>
 
-        <QueryState isLoading={list.isLoading} error={list.error} />
+        <QueryState isLoading={list.isLoading} error={list.error} onRetry={() => list.refetch()} rows={8} what="subscriptions" />
         {list.data && (
           <>
-            <Table.ScrollContainer minWidth={900}>
-              <Table highlightOnHover verticalSpacing="sm">
+            <Table.ScrollContainer minWidth={880}>
+              <Table className="data-table">
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Number</Table.Th>
                     <Table.Th>Customer</Table.Th>
                     <Table.Th>Plan</Table.Th>
-                    <Table.Th>Start</Table.Th>
-                    <Table.Th>Expiry</Table.Th>
+                    <Table.Th>Term</Table.Th>
                     <Table.Th>Next invoice</Table.Th>
                     <Table.Th ta="right">Per period</Table.Th>
                     <Table.Th>Status</Table.Th>
@@ -112,19 +119,19 @@ export function SubscriptionsPage() {
                 </Table.Thead>
                 <Table.Tbody>
                   {list.data.data.map((sub) => (
-                    <Table.Tr key={sub.id} style={{ cursor: 'pointer' }} onClick={() => navigate(staffPath(`/subscriptions/${sub.id}`))}>
-                      <Table.Td fw={600}>{sub.number}</Table.Td>
-                      <Table.Td>{sub.customer.name}</Table.Td>
+                    <Table.Tr key={sub.id} className="row-link" onClick={() => navigate(staffPath(`/subscriptions/${sub.id}`))}>
+                      <Table.Td className="mono">{sub.number}</Table.Td>
+                      <Table.Td fw={500}>{sub.customer.name}</Table.Td>
                       <Table.Td>
                         {sub.plan.name}
-                        <Text span size="xs" c="dimmed">
-                          {' '}
-                          · {sub.plan.billingPeriod}
+                        <Text span size="xs" c="dimmed" ml={6}>
+                          {sub.plan.billingPeriod}
                         </Text>
                       </Table.Td>
-                      <Table.Td>{formatDate(sub.startDate)}</Table.Td>
-                      <Table.Td>{formatDate(sub.expiryDate)}</Table.Td>
-                      <Table.Td>{formatDate(sub.nextInvoiceDate)}</Table.Td>
+                      <Table.Td c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                        {formatDate(sub.startDate)} to {formatDate(sub.expiryDate)}
+                      </Table.Td>
+                      <Table.Td style={{ whiteSpace: 'nowrap' }}>{formatDate(sub.nextInvoiceDate)}</Table.Td>
                       <Table.Td ta="right" className="num">
                         {formatMoney(sub.recurringTotal)}
                       </Table.Td>
@@ -133,27 +140,49 @@ export function SubscriptionsPage() {
                       </Table.Td>
                     </Table.Tr>
                   ))}
-                  {!list.data.data.length && (
-                    <Table.Tr>
-                      <Table.Td colSpan={8}>
-                        <Text c="dimmed" ta="center" py="lg">
-                          No subscriptions match these filters.
-                        </Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  )}
                 </Table.Tbody>
               </Table>
             </Table.ScrollContainer>
-            <Group justify="space-between" p="md">
-              <Text size="sm" c="dimmed">
-                {list.data.meta.total.toLocaleString('en-IN')} results
-              </Text>
-              <Pagination total={list.data.meta.totalPages} value={page} onChange={(p) => update({ page: String(p) })} />
-            </Group>
+
+            {!list.data.data.length && (
+              <Group p={24} gap="sm">
+                <Text size="sm" c="dimmed">
+                  {hasFilters ? 'No subscriptions match these filters.' : 'No subscriptions yet. Start with a quotation.'}
+                </Text>
+                {hasFilters && (
+                  <Button size="compact-sm" variant="default" onClick={() => setParams(new URLSearchParams(), { replace: true })}>
+                    Clear filters
+                  </Button>
+                )}
+              </Group>
+            )}
+
+            {meta && meta.total > 0 && (
+              <Group justify="space-between" px={20} py={12} style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+                <Text size="sm" c="dimmed">
+                  <span className="num">
+                    {firstRow}–{lastRow}
+                  </span>{' '}
+                  of <span className="num">{meta.total}</span>
+                </Text>
+                <Group gap={6}>
+                  <Button size="compact-sm" variant="default" disabled={page <= 1} onClick={() => update({ page: String(page - 1) })}>
+                    Previous
+                  </Button>
+                  <Button
+                    size="compact-sm"
+                    variant="default"
+                    disabled={page >= meta.totalPages}
+                    onClick={() => update({ page: String(page + 1) })}
+                  >
+                    Next
+                  </Button>
+                </Group>
+              </Group>
+            )}
           </>
         )}
-      </Card>
+      </div>
     </>
   )
 }

@@ -72,7 +72,7 @@ async function main() {
   expectStatus('disabled staff → 403', await call('POST', '/auth/staff/login', { body: { email: 'karan@brightloop.test', password: 'Staff@2026!' } }), 403, 'ACCOUNT_DISABLED');
   expectStatus('no token → 401', await call('GET', '/meta'), 401, 'UNAUTHENTICATED');
   const meta = await call('GET', '/meta', { token: staff });
-  check('GET /meta', meta.status === 200 && meta.json.data.company.name === 'Brightloop Software');
+  check('GET /meta', meta.status === 200 && meta.json.data.company.name === 'Subscribby');
 
   console.log('\nForced password change');
   const newbie = await login('staff', 'new.staff@brightloop.test', 'Welcome@2026!');

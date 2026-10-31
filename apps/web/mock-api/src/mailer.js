@@ -27,7 +27,7 @@ export function sendPasswordReset(user, resetUrl) {
   return capture({
     type: 'password_reset',
     to: { email: user.email, name: user.name },
-    subject: 'Reset your Brightloop password',
+    subject: 'Reset your Subscribby password',
     text: `Hi ${user.name},\n\nUse this link to set a new password. It works once and expires in 30 minutes:\n${resetUrl}\n`,
     params: { name: user.name, resetUrl, expiresInMinutes: 30 },
   });
