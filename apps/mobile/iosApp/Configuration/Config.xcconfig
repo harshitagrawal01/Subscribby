@@ -1,0 +1,8 @@
+// Set TEAM_ID to your Apple developer team to run on a real device. Not needed for the simulator.
+TEAM_ID=
+
+PRODUCT_NAME=Subscribby
+PRODUCT_BUNDLE_IDENTIFIER=com.subscribby.mobile.Subscribby$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0
