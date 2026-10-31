@@ -33,7 +33,11 @@ object Palette {
     val Ink0 = Color(0xFFEEF2F7)
 
     val Paper = Color(0xFFF7F5F1)
+    /** One step down from [Paper]: segmented-control track, pressed rows. */
+    val PaperDeep = Color(0xFFEDE9E1)
     val Surface = Color(0xFFFFFFFF)
+    /** Receipt paper: a hair warmer than white. */
+    val Receipt = Color(0xFFFFFEFB)
     val Line = Color(0xFFE4E0D8)
     /** Input borders: a step darker than [Line] so fields read as fields. */
     val LineStrong = Color(0xFFCFCAC0)
@@ -42,12 +46,20 @@ object Palette {
 
     val Text = Color(0xFF1C1B19)
     val TextMuted = Color(0xFF6B675F)
-    val TextFaint = Color(0xFF8F8A80)
+    /** Hints and meta text: 5.0:1 on white, 4.6:1 on paper (AA). */
+    val TextFaint = Color(0xFF736E64)
 
-    /** Brand: logo ink, logo marigold (logo only), and the warmer paper behind the auth sheet. */
+    /** Brand: logo ink, logo marigold (logo only), and the warmer paper behind the auth screens. */
     val BrandInk = Color(0xFF1D2B44)
     val Marigold = Color(0xFFF2B544)
     val AuthPaper = Color(0xFFF4EFE6)
+
+    /** Warm shadow tint so depth reads as paper on paper, not grey plastic. */
+    val Shadow = Color(0xFF3C2D14)
+
+    /** Text on the deep ink hero card. */
+    val OnInk = Color(0xFFFBF7EF)
+    val OnInkMuted = Color(0xB8FBF7EF)
 }
 
 /** Status colours: text plus a 7dp dot, never pills. */
@@ -59,6 +71,15 @@ object StatusColors {
     val paused = Color(0xFF8A6A1F)
     val draft = Color(0xFF8F8A80)
     val closed = Color(0xFF4F4C46)
+
+    /** Soft tints of the status hues for icon tiles and notices. */
+    val activeTint = Color(0xFFE8F2EC)
+    val overdueTint = Color(0xFFFCEDEB)
+    val quotationTint = Color(0xFFFAEEDB)
+
+    /** Status hues lifted for the dark ink card (contrast ≥ 4.5:1 on Ink9). */
+    val overdueOnInk = Color(0xFFFFB4A9)
+    val activeOnInk = Color(0xFF9FD9B5)
 }
 
 private val Colors = lightColorScheme(
@@ -79,7 +100,7 @@ private val Colors = lightColorScheme(
     onBackground = Palette.Text,
     surface = Palette.Paper,
     onSurface = Palette.Text,
-    surfaceVariant = Palette.Paper,
+    surfaceVariant = Palette.PaperDeep,
     onSurfaceVariant = Palette.TextMuted,
     surfaceTint = Color.Transparent,
     surfaceBright = Palette.Surface,
@@ -89,28 +110,42 @@ private val Colors = lightColorScheme(
     surfaceContainer = Palette.Surface,
     surfaceContainerHigh = Palette.Surface,
     surfaceContainerHighest = Palette.Surface,
-    inverseSurface = Palette.Text,
-    inverseOnSurface = Palette.Paper,
+    inverseSurface = Palette.Ink9,
+    inverseOnSurface = Palette.OnInk,
     outline = Palette.LineStrong,
     outlineVariant = Palette.Line,
     error = StatusColors.overdue,
     onError = Color.White,
-    errorContainer = Color(0xFFFCEFEE),
+    errorContainer = StatusColors.overdueTint,
     onErrorContainer = Color(0xFF7A1A12),
     scrim = Color(0xFF1C1B19),
 )
 
-// 6dp controls, 10dp panels and dialogs (same as the web theme).
+/**
+ * Mobile radii. The web uses 6/10/18; on a phone those read as boxy web panels, so controls get
+ * 14dp, grouped lists 18dp, cards 22dp, the hero card 26dp and sheets 28dp (same family, scaled for touch).
+ */
+object Radii {
+    val control = 14.dp
+    val group = 18.dp
+    val card = 22.dp
+    val hero = 26.dp
+    val sheet = 28.dp
+}
+
 private val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(6.dp),
-    medium = RoundedCornerShape(6.dp),
-    large = RoundedCornerShape(10.dp),
-    extraLarge = RoundedCornerShape(10.dp),
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(Radii.control),
+    medium = RoundedCornerShape(Radii.control),
+    large = RoundedCornerShape(Radii.group),
+    extraLarge = RoundedCornerShape(Radii.sheet),
 )
 
 /** Plex Mono, only for document numbers (SUB/2026/0042, INV/2026/0311). */
 val LocalMonoFamily = staticCompositionLocalOf<FontFamily> { FontFamily.Monospace }
+
+/** Fraunces, for brand moments drawn outside the Material type scale (avatar initials). */
+val LocalSerifFamily = staticCompositionLocalOf<FontFamily> { FontFamily.Serif }
 
 /** Lowercase "subscribby" next to the logo mark. */
 val LocalWordmarkStyle = staticCompositionLocalOf { TextStyle.Default }
@@ -138,40 +173,44 @@ private fun plexMono() = FontFamily(
     Font(Res.font.ibm_plex_mono_medium, FontWeight.Medium),
 )
 
-// Scale: 12 meta, 13 labels, 14 body, 16 section title, 22 screen title (serif), 28 auth title, 32 hero.
+/**
+ * Mobile scale (all sp, so it follows the system font size):
+ * 34 large title (serif) · 24 sheet title (serif) · 20 card title (serif) ·
+ * 17 bar title / strong total · 16 body & row title · 15 secondary body · 13 meta · 11 tab label.
+ */
 private fun typography(sans: FontFamily, serif: FontFamily): Typography {
-    fun style(size: Int, line: Int, weight: FontWeight = FontWeight.Normal) =
+    fun style(size: Int, line: Int, weight: FontWeight = FontWeight.Normal, tracking: Double = 0.0) =
         TextStyle(
             fontFamily = sans,
             fontSize = size.sp,
             lineHeight = line.sp,
             fontWeight = weight,
-            letterSpacing = 0.sp,
+            letterSpacing = tracking.sp,
             // Tabular figures so amounts and dates line up; ss02 matches the web app's Plex.
             fontFeatureSettings = "tnum, ss02",
         )
     fun heading(size: Int, line: Int) =
-        TextStyle(fontFamily = serif, fontSize = size.sp, lineHeight = line.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.025).em)
+        TextStyle(fontFamily = serif, fontSize = size.sp, lineHeight = line.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.02).em)
     return Typography(
-        displayLarge = heading(32, 40),
-        displayMedium = heading(28, 36),
-        displaySmall = heading(28, 36),
+        displayLarge = heading(34, 41),
+        displayMedium = heading(30, 36),
+        displaySmall = heading(28, 34),
         headlineLarge = heading(28, 34),
-        headlineMedium = heading(22, 28),
+        headlineMedium = heading(24, 30),
         headlineSmall = heading(22, 28),
-        titleLarge = heading(22, 28),
-        titleMedium = style(16, 24, FontWeight.SemiBold),
-        titleSmall = style(14, 20, FontWeight.Medium),
+        titleLarge = heading(20, 26),
+        titleMedium = style(17, 24, FontWeight.SemiBold, -0.1),
+        titleSmall = style(16, 22, FontWeight.Medium),
         bodyLarge = style(16, 24),
-        bodyMedium = style(14, 21),
-        bodySmall = style(12, 18),
-        labelLarge = style(14, 20, FontWeight.Medium),
+        bodyMedium = style(15, 22),
+        bodySmall = style(13, 18),
+        labelLarge = style(16, 20, FontWeight.SemiBold),
         labelMedium = style(13, 18, FontWeight.Medium),
-        labelSmall = style(12, 16, FontWeight.Medium),
+        labelSmall = style(11, 14, FontWeight.Medium, 0.1),
     )
 }
 
-/** Light only on purpose: the ledger look is ink on paper. No dynamic colour. */
+/** Light only on purpose: the ledger look is ink on paper. No dynamic colour, even if the phone is dark. */
 @Composable
 fun SubscribbyTheme(content: @Composable () -> Unit) {
     val sans = plexSans()
@@ -181,15 +220,16 @@ fun SubscribbyTheme(content: @Composable () -> Unit) {
     // Money is Plex Sans with tabular figures; mono figures this large read like code.
     val hero = TextStyle(
         fontFamily = sans,
-        fontSize = 32.sp,
-        lineHeight = 40.sp,
+        fontSize = 44.sp,
+        lineHeight = 52.sp,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = (-0.5).sp,
+        letterSpacing = (-1.2).sp,
         fontFeatureSettings = "tnum, ss02",
     )
     MaterialTheme(colorScheme = Colors, shapes = AppShapes, typography = typography(sans, serif)) {
         CompositionLocalProvider(
             LocalMonoFamily provides mono,
+            LocalSerifFamily provides serif,
             LocalHeroStyle provides hero,
             LocalWordmarkStyle provides wordmark,
             content = content,

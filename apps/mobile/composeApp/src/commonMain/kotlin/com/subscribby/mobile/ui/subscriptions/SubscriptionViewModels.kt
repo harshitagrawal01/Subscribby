@@ -77,6 +77,10 @@ class SubscriptionDetailViewModel(
     var message by mutableStateOf<String?>(null)
         private set
 
+    /** Whether [message] reports a success (check icon) or a problem (alert icon). */
+    var messageSuccess by mutableStateOf(false)
+        private set
+
     fun load() {
         val current = state
         state = if (current is LoadState.Success) current.copy(refreshing = true) else LoadState.Loading
@@ -85,6 +89,7 @@ class SubscriptionDetailViewModel(
                 LoadState.Success(portal.subscription(id))
             } catch (e: Exception) {
                 if (current is LoadState.Success) {
+                    messageSuccess = false
                     message = e.userMessage()
                     current.copy(refreshing = false)
                 } else {
@@ -105,8 +110,10 @@ class SubscriptionDetailViewModel(
         viewModelScope.launch {
             try {
                 state = LoadState.Success(portal.runAction(id, action))
+                messageSuccess = true
                 message = Labels.actionDone(action)
             } catch (e: Exception) {
+                messageSuccess = false
                 message = e.userMessage()
             } finally {
                 runningAction = null

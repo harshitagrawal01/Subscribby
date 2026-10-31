@@ -12,6 +12,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -96,11 +98,8 @@ class UiFlowTest {
         onNodeWithTag("action-reject").assertExists()
         onNodeWithTag("action-accept").performClick()
         waitForText("Accept SUB/2026/0049?")
-        // The dialog's confirm button shares the label; it is the last "Accept quotation" node.
-        onAllNodes(hasText("Accept quotation")).let { nodes ->
-            val count = nodes.fetchSemanticsNodes().size
-            nodes[count - 1].performClick()
-        }
+        // The confirm sheet's button shares the label with the dock button, so find it by tag.
+        onNode(hasTestTag("sheet-confirm") and hasText("Accept quotation")).performClick()
         waitUntil(timeoutMillis = 15_000) { onAllNodes(hasTestTag("action-accept")).fetchSemanticsNodes().isEmpty() }
         waitForText("Confirmed")
 
@@ -116,16 +115,21 @@ class UiFlowTest {
         waitForText("INV/2026/0106")
         waitUntil(timeoutMillis = 15_000) { onAllNodes(hasText("INV/2026/0152")).fetchSemanticsNodes().isEmpty() }
         onNodeWithText("INV/2026/0106").performClick()
+        waitForText("Tax invoice")
+        onNodeWithTag("invoice-detail").performScrollToNode(hasText("Payments"))
         waitForText("Payments")
         waitForText("UPI", substring = true)
         onNode(hasContentDescription("Back")).performClick()
 
-        // Profile → log out
+        // Profile → log out. The list is lazy and the tab bar floats over its bottom edge, so
+        // scroll to the end (as a person would) before tapping the row.
         onNodeWithTag("tab-Profile").performClick()
         waitForText("Kite Stores")
+        onNodeWithTag("profile-list").performScrollToNode(hasText("Log out"))
+        onNodeWithTag("profile-list").performTouchInput { swipeUp() }
         onNodeWithText("Log out").performClick()
         waitForText("Log out of Subscribby?")
-        onAllNodes(hasText("Log out")).let { nodes -> nodes[nodes.fetchSemanticsNodes().size - 1].performClick() }
+        onNode(hasTestTag("sheet-confirm") and hasText("Log out")).performClick()
         waitForText("See your subscriptions, invoices and payments.")
     }
 

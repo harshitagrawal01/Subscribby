@@ -14,6 +14,9 @@ struct ComposeView: UIViewControllerRepresentable {
 struct ContentView: View {
     var body: some View {
         // Compose handles safe areas and the keyboard itself.
-        ComposeView().ignoresSafeArea()
+        ComposeView()
+            .ignoresSafeArea()
+            // The app is light only (ink on paper): keep dark status bar text even in Dark Mode.
+            .preferredColorScheme(.light)
     }
 }

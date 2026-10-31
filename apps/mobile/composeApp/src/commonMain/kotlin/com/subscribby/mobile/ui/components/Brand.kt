@@ -1,5 +1,6 @@
 package com.subscribby.mobile.ui.components
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -9,15 +10,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.graphics.vector.group
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +65,17 @@ fun logoMarkVector(light: Boolean = false): ImageVector {
     }.build()
 }
 
+/** The logo's two receipts as one flat silhouette, for texture on the ink hero card. */
+fun logoSilhouetteVector(color: Color): ImageVector =
+    ImageVector.Builder("subscribby-silhouette", 32.dp, 32.dp, 32f, 32f).apply {
+        group(rotate = 9f, pivotX = 18f, pivotY = 14f) {
+            addPath(addPathNodes(BACK), fill = SolidColor(color.copy(alpha = color.alpha * 0.55f)))
+        }
+        group(rotate = -5f, pivotX = 14f, pivotY = 18f) {
+            addPath(addPathNodes(FRONT), fill = SolidColor(color))
+        }
+    }.build()
+
 @Composable
 fun LogoMark(size: Dp = 28.dp, modifier: Modifier = Modifier) {
     val vector = remember { logoMarkVector() }
@@ -70,4 +93,62 @@ fun BrandMark(modifier: Modifier = Modifier, markSize: Dp = 28.dp, wordSize: Tex
         LogoMark(markSize)
         Text("subscribby", style = LocalWordmarkStyle.current.copy(fontSize = wordSize, lineHeight = wordSize))
     }
+}
+
+/** Receipt outline with a torn (zig-zag) bottom edge, like the web's paper receipts. */
+class TornEdgeShape(private val tooth: Dp = 12.dp, private val depth: Dp = 6.dp) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val path = with(density) { tornPath(size, tooth.toPx(), depth.toPx()) }
+        return Outline.Generic(path)
+    }
+}
+
+private fun tornPath(size: Size, tooth: Float, depth: Float, topRadius: Float = 0f): Path = Path().apply {
+    val teeth = (size.width / tooth).toInt().coerceAtLeast(2).let { if (it % 2 == 1) it + 1 else it }
+    val step = size.width / teeth
+    moveTo(0f, topRadius)
+    if (topRadius > 0f) quadraticTo(0f, 0f, topRadius, 0f) else lineTo(0f, 0f)
+    lineTo(size.width - topRadius, 0f)
+    if (topRadius > 0f) quadraticTo(size.width, 0f, size.width, topRadius)
+    lineTo(size.width, size.height - depth)
+    for (i in 1..teeth) {
+        val x = size.width - i * step
+        lineTo(x, if (i % 2 == 1) size.height else size.height - depth)
+    }
+    close()
+}
+
+/** Small drawing for empty states: two receipts, the back one plain, the front one with lines. */
+@Composable
+fun EmptyReceipts(modifier: Modifier = Modifier, accent: Color = Palette.Ink1) {
+    Canvas(modifier.size(width = 112.dp, height = 96.dp)) {
+        val w = 54.dp.toPx()
+        val h = 68.dp.toPx()
+        val tooth = 9.dp.toPx()
+        val depth = 4.5.dp.toPx()
+        // Back receipt
+        translate(left = size.width * 0.42f, top = 6.dp.toPx()) {
+            rotate(10f, pivot = Offset(w / 2, h / 2)) {
+                drawPath(tornPath(Size(w, h), tooth, depth, 6.dp.toPx()), Palette.PaperDeep)
+            }
+        }
+        // Front receipt
+        translate(left = size.width * 0.14f, top = 18.dp.toPx()) {
+            rotate(-6f, pivot = Offset(w / 2, h / 2)) {
+                val outline = tornPath(Size(w, h), tooth, depth, 6.dp.toPx())
+                drawPath(outline, Palette.Surface)
+                drawPath(outline, Palette.LineStrong, style = Stroke(1.5.dp.toPx()))
+                receiptLines(w, accent)
+            }
+        }
+    }
+}
+
+private fun DrawScope.receiptLines(w: Float, accent: Color) {
+    val x0 = 10.dp.toPx()
+    val stroke = 3.dp.toPx()
+    drawLine(Palette.LineStrong, Offset(x0, 16.dp.toPx()), Offset(w - x0, 16.dp.toPx()), stroke, StrokeCap.Round)
+    drawLine(Palette.Line, Offset(x0, 26.dp.toPx()), Offset(w * 0.62f, 26.dp.toPx()), stroke, StrokeCap.Round)
+    drawLine(Palette.Line, Offset(x0, 36.dp.toPx()), Offset(w * 0.7f, 36.dp.toPx()), stroke, StrokeCap.Round)
+    drawCircle(accent, radius = 5.dp.toPx(), center = Offset(w - 15.dp.toPx(), 50.dp.toPx()))
 }

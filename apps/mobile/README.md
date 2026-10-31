@@ -137,9 +137,14 @@ apps/mobile
 ## Design
 
 The UI follows the shared design reference in [`apps/web/docs/design.md`](../web/docs/design.md): ink #223A5E on warm
-paper #F7F5F1, white panels with warm-grey borders and no shadows, IBM Plex Sans with tabular figures for text and money,
-IBM Plex Mono only for document numbers, Fraunces for screen titles and the wordmark, status as a coloured dot plus text.
-Tokens live in `ui/theme/Theme.kt`; shared pieces (buttons, panels, status, ledger, skeletons) in `ui/components/`.
+paper #F7F5F1, IBM Plex Sans with tabular figures for text and money, IBM Plex Mono only for document numbers, Fraunces
+for large titles and the wordmark, status as a coloured dot plus text. On the phone it uses native patterns instead of
+web panels: large titles that collapse into a compact bar, grouped inset lists with hairlines, a deep-ink amount-due
+card, a floating tab bar, bottom sheets for confirmations, a segmented control, pull to refresh, shimmer skeletons, a
+torn-edge paper receipt for invoices, haptics on key actions and push/pop transitions (decorative motion is skipped when
+the system asks for reduced motion). Radii are scaled up for touch (14dp controls, 18dp groups, 26dp hero card).
+Tokens live in `ui/theme/Theme.kt`; shared pieces (surfaces, sheets, buttons, fields, status, ledger, skeletons,
+motion) in `ui/components/`.
 Text inputs are trimmed before they are checked or sent; passwords are never trimmed, and a new password may not start or
 end with a space. Font and icon licences are in `composeResources/files/licenses/`.
 
