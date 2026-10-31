@@ -9,7 +9,7 @@ import com.subscribby.mobile.data.api.ApiException
 import com.subscribby.mobile.data.api.userMessage
 import com.subscribby.mobile.data.repo.AuthRepository
 import com.subscribby.mobile.util.isValidEmail
-import com.subscribby.mobile.util.passwordProblem
+import com.subscribby.mobile.util.newPasswordProblem
 import kotlinx.coroutines.launch
 
 /** Same wording as the web app's login page. */
@@ -37,6 +37,8 @@ class LoginViewModel(private val auth: AuthRepository) : ViewModel() {
 
     fun submit() {
         if (state.submitting) return
+        // Email is trimmed before checking and sending; the password is sent exactly as typed.
+        state = state.copy(email = state.email.trim())
         val emailError = if (!isValidEmail(state.email)) "Enter a valid email" else null
         val passwordError = if (state.password.isEmpty()) "Password is required" else null
         if (emailError != null || passwordError != null) {
@@ -83,10 +85,11 @@ class SignupViewModel(private val auth: AuthRepository) : ViewModel() {
 
     fun submit() {
         if (state.submitting) return
+        state = state.copy(name = state.name.trim(), company = state.company.trim(), email = state.email.trim())
         val errors = buildMap {
-            if (state.name.trim().length < 2) put("name", "Enter your name")
+            if (state.name.length < 2) put("name", "Enter your full name")
             if (!isValidEmail(state.email)) put("email", "Enter a valid email")
-            passwordProblem(state.password)?.let { put("password", it) }
+            newPasswordProblem(state.password)?.let { put("password", it) }
             if (state.confirm != state.password) put("confirmPassword", "Passwords do not match")
         }
         if (errors.isNotEmpty()) {
@@ -130,6 +133,7 @@ class ForgotPasswordViewModel(private val auth: AuthRepository) : ViewModel() {
 
     fun submit() {
         if (state.submitting) return
+        state = state.copy(email = state.email.trim())
         if (!isValidEmail(state.email)) {
             state = state.copy(emailError = "Enter a valid email")
             return
@@ -138,7 +142,7 @@ class ForgotPasswordViewModel(private val auth: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             // The API answers 200 whether or not the email exists, so the result is always the same message.
             runCatching { auth.forgotPassword(state.email) }
-            state = state.copy(submitting = false, sentTo = state.email.trim())
+            state = state.copy(submitting = false, sentTo = state.email)
         }
     }
 }

@@ -1,57 +1,72 @@
 package com.subscribby.mobile.ui.invoices
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.subscribby.mobile.data.model.InvoiceDetail
 import com.subscribby.mobile.data.model.InvoiceListItem
 import com.subscribby.mobile.data.repo.InvoiceFilter
 import com.subscribby.mobile.ui.LocalAppContainer
-import com.subscribby.mobile.ui.components.BackButton
-import com.subscribby.mobile.ui.components.EmptyView
-import com.subscribby.mobile.ui.components.ErrorView
-import com.subscribby.mobile.ui.components.InvoiceStatusChip
-import com.subscribby.mobile.ui.components.LabelValueRow
-import com.subscribby.mobile.ui.components.LinesCard
+import com.subscribby.mobile.ui.components.AppIcons
+import com.subscribby.mobile.ui.components.DocNumber
+import com.subscribby.mobile.ui.components.Dot
+import com.subscribby.mobile.ui.components.EmptyState
+import com.subscribby.mobile.ui.components.ErrorState
+import com.subscribby.mobile.ui.components.GroupGap
+import com.subscribby.mobile.ui.components.HeaderIconButton
+import com.subscribby.mobile.ui.components.InvoiceStatus
+import com.subscribby.mobile.ui.components.KeyValueRow
+import com.subscribby.mobile.ui.components.LinesLedger
+import com.subscribby.mobile.ui.components.ListSkeleton
 import com.subscribby.mobile.ui.components.LoadState
-import com.subscribby.mobile.ui.components.LoadingView
-import com.subscribby.mobile.ui.components.SectionCard
-import com.subscribby.mobile.ui.components.TotalsCard
+import com.subscribby.mobile.ui.components.Money
+import com.subscribby.mobile.ui.components.Panel
+import com.subscribby.mobile.ui.components.PanelDivider
+import com.subscribby.mobile.ui.components.ScreenHeader
+import com.subscribby.mobile.ui.components.ScreenPadding
+import com.subscribby.mobile.ui.components.ScreenSkeleton
+import com.subscribby.mobile.ui.components.SectionTitle
+import com.subscribby.mobile.ui.components.TotalRow
+import com.subscribby.mobile.ui.components.TotalsBlock
 import com.subscribby.mobile.ui.components.dataOrNull
+import com.subscribby.mobile.ui.components.focusRing
+import com.subscribby.mobile.ui.components.rowClickable
+import com.subscribby.mobile.ui.theme.LocalHeroStyle
+import com.subscribby.mobile.ui.theme.Palette
+import com.subscribby.mobile.ui.theme.StatusColors
 import com.subscribby.mobile.util.Labels
 import com.subscribby.mobile.util.formatDate
 import com.subscribby.mobile.util.formatMoney
@@ -64,25 +79,13 @@ fun InvoicesScreen(onOpenInvoice: (String) -> Unit) {
     LaunchedEffect(Unit) { vm.load() }
 
     Scaffold(
+        containerColor = Palette.Paper,
         topBar = {
-            TopAppBar(
-                title = { Text("Invoices") },
-                actions = { IconButton(onClick = vm::load) { Icon(Icons.Default.Refresh, contentDescription = "Refresh") } },
-            )
+            ScreenHeader(title = "Invoices") { HeaderIconButton(AppIcons.Refresh, "Refresh", vm::load) }
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                val filters = InvoiceFilter.entries
-                filters.forEachIndexed { index, filter ->
-                    SegmentedButton(
-                        selected = vm.filter == filter,
-                        onClick = { vm.selectFilter(filter) },
-                        shape = SegmentedButtonDefaults.itemShape(index, filters.size),
-                        modifier = Modifier.testTag("filter-${filter.name}"),
-                    ) { Text(filter.label) }
-                }
-            }
+            FilterTabs(vm.filter, vm::selectFilter)
             val state = vm.state
             PullToRefreshBox(
                 isRefreshing = state is LoadState.Success && state.refreshing,
@@ -90,69 +93,114 @@ fun InvoicesScreen(onOpenInvoice: (String) -> Unit) {
                 modifier = Modifier.fillMaxSize(),
             ) {
                 when (state) {
-                    LoadState.Loading -> LoadingView()
-                    is LoadState.Error -> ErrorView(state.message, onRetry = vm::load)
-                    is LoadState.Success ->
+                    LoadState.Loading -> ListSkeleton(Modifier.padding(ScreenPadding))
+                    is LoadState.Error -> ErrorState("Couldn't load your invoices. ${state.message}", onRetry = vm::load)
+                    is LoadState.Success -> Column(
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(ScreenPadding).padding(bottom = 16.dp),
+                    ) {
                         if (state.data.isEmpty()) {
-                            EmptyView(
-                                title = when (vm.filter) {
-                                    InvoiceFilter.Unpaid -> "Nothing to pay"
-                                    InvoiceFilter.Paid -> "No paid invoices yet"
-                                    InvoiceFilter.All -> "No invoices yet"
-                                },
-                                message = "Invoices appear here once Brightloop bills your subscriptions.",
-                                // Keeps pull-to-refresh working on an empty list.
-                                modifier = Modifier.verticalScroll(rememberScrollState()),
-                            )
+                            when (vm.filter) {
+                                InvoiceFilter.Unpaid -> EmptyState(
+                                    "Nothing to pay. Every invoice so far is settled.",
+                                    actionLabel = "Show all invoices",
+                                    onAction = { vm.selectFilter(InvoiceFilter.All) },
+                                )
+                                InvoiceFilter.Paid -> EmptyState(
+                                    "No paid invoices yet. They appear here once a payment is recorded.",
+                                    actionLabel = "Show all invoices",
+                                    onAction = { vm.selectFilter(InvoiceFilter.All) },
+                                )
+                                InvoiceFilter.All -> EmptyState(
+                                    "No invoices yet. The first one is created on your subscription's billing date.",
+                                    actionLabel = "Check again",
+                                    onAction = vm::load,
+                                )
+                            }
                         } else {
-                            LazyColumn(
-                                Modifier.fillMaxSize().testTag("invoices-list"),
-                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 4.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                items(state.data, key = { it.id }) { invoice -> InvoiceRow(invoice) { onOpenInvoice(invoice.id) } }
+                            Panel(Modifier.testTag("invoices-list")) {
+                                state.data.forEachIndexed { index, invoice ->
+                                    if (index > 0) PanelDivider()
+                                    InvoiceRow(invoice) { onOpenInvoice(invoice.id) }
+                                }
                             }
                         }
+                    }
                 }
             }
         }
     }
 }
 
+/** Text tabs with an ink underline on the selected one, over a hairline. */
 @Composable
-private fun InvoiceRow(invoice: InvoiceListItem, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(invoice.number, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                InvoiceStatusChip(invoice.status, invoice.isOverdue)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+private fun FilterTabs(selected: InvoiceFilter, onSelect: (InvoiceFilter) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 8.dp).selectableGroup()) {
+            InvoiceFilter.entries.forEach { filter ->
+                val isSelected = filter == selected
+                val source = remember { MutableInteractionSource() }
+                Box(
+                    Modifier
+                        .focusRing(source, outset = (-2).dp)
+                        .selectable(
+                            selected = isSelected,
+                            onClick = { onSelect(filter) },
+                            role = Role.Tab,
+                            interactionSource = source,
+                            indication = LocalIndication.current,
+                        )
+                        .testTag("filter-${filter.name}")
+                        .padding(horizontal = 8.dp)
+                        .then(if (isSelected) Modifier.drawBehind { underline() } else Modifier),
+                ) {
                     Text(
-                        if (invoice.isOverdue) "Overdue by ${invoice.daysOverdue} day${if (invoice.daysOverdue == 1) "" else "s"}"
-                        else "Due ${formatDate(invoice.dueDate)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (invoice.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        filter.label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (isSelected) Palette.Ink8 else Palette.TextMuted,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
                     )
-                    invoice.subscription?.let {
-                        Text(it.number, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(formatMoney(invoice.total), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    if (invoice.balance > 0 && invoice.status == "confirmed" && invoice.balance != invoice.total) {
-                        Text("Balance ${formatMoney(invoice.balance)}", style = MaterialTheme.typography.bodySmall)
-                    }
                 }
             }
         }
+        PanelDivider()
     }
 }
+
+private fun DrawScope.underline() {
+    val h = 2.dp.toPx()
+    drawRect(Palette.Ink8, topLeft = Offset(0f, size.height - h), size = Size(size.width, h))
+}
+
+@Composable
+private fun InvoiceRow(invoice: InvoiceListItem, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().rowClickable(onClick).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            DocNumber(invoice.number, size = 13.sp, color = Palette.Text, fontWeight = FontWeight.Medium)
+            Text(
+                when {
+                    invoice.isOverdue -> "Due ${formatDate(invoice.dueDate)}, ${days(invoice.daysOverdue)} late"
+                    invoice.status == "paid" -> "Issued ${formatDate(invoice.invoiceDate)}"
+                    else -> "Due ${formatDate(invoice.dueDate)}"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (invoice.isOverdue) StatusColors.overdue else Palette.TextMuted,
+            )
+        }
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Money(invoice.total, style = MaterialTheme.typography.titleSmall)
+            if (invoice.status == "confirmed" && invoice.balance > 0 && invoice.balance != invoice.total) {
+                Text("${formatMoney(invoice.balance)} left", style = MaterialTheme.typography.bodySmall, color = Palette.TextMuted)
+            }
+            InvoiceStatus(invoice.status, invoice.isOverdue)
+        }
+    }
+}
+
+private fun days(n: Int) = if (n == 1) "1 day" else "$n days"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -163,12 +211,8 @@ fun InvoiceDetailScreen(id: String, onBack: () -> Unit, onOpenSubscription: (Str
     val state = vm.state
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(state.dataOrNull?.number ?: "Invoice") },
-                navigationIcon = { BackButton(onBack) },
-            )
-        },
+        containerColor = Palette.Paper,
+        topBar = { ScreenHeader(title = state.dataOrNull?.number, backLabel = "Invoices", onBack = onBack) },
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = state is LoadState.Success && state.refreshing,
@@ -176,8 +220,8 @@ fun InvoiceDetailScreen(id: String, onBack: () -> Unit, onOpenSubscription: (Str
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             when (state) {
-                LoadState.Loading -> LoadingView()
-                is LoadState.Error -> ErrorView(state.message, onRetry = vm::load)
+                LoadState.Loading -> ScreenSkeleton(rows = 3)
+                is LoadState.Error -> ErrorState("Couldn't load this invoice. ${state.message}", onRetry = vm::load)
                 is LoadState.Success -> InvoiceContent(state.data, onOpenSubscription)
             }
         }
@@ -187,94 +231,121 @@ fun InvoiceDetailScreen(id: String, onBack: () -> Unit, onOpenSubscription: (Str
 @Composable
 private fun InvoiceContent(invoice: InvoiceDetail, onOpenSubscription: (String) -> Unit) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = ScreenPadding).padding(top = 4.dp, bottom = 32.dp),
     ) {
-        SectionCard {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(invoice.number, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                InvoiceStatusChip(invoice.status, invoice.isOverdue)
-            }
-            LabelValueRow("Balance due", formatMoney(invoice.balance), emphasized = true)
-            if (invoice.isOverdue) {
+        // Focal point: what's left to pay, or what was paid once it's settled.
+        val settled = invoice.status == "paid"
+        Text(if (settled) "Amount paid" else "Balance due", style = MaterialTheme.typography.labelMedium, color = Palette.TextMuted)
+        Spacer(Modifier.height(4.dp))
+        Money(if (settled) invoice.amountPaid else invoice.balance, style = LocalHeroStyle.current)
+        Spacer(Modifier.height(6.dp))
+        val (note, noteColor) = when {
+            invoice.isOverdue -> "Was due ${formatDate(invoice.dueDate)}, ${days(invoice.daysOverdue)} ago" to StatusColors.overdue
+            invoice.status == "paid" -> "Paid in full" + (invoice.payments.maxOfOrNull { it.paymentDate }?.let { " on ${formatDate(it)}" } ?: "") to StatusColors.active
+            invoice.status == "cancelled" -> "This invoice was cancelled" to Palette.TextMuted
+            else -> "Due ${formatDate(invoice.dueDate)}" to Palette.TextMuted
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (noteColor != Palette.TextMuted) Dot(noteColor)
+            Text(note, style = MaterialTheme.typography.bodyMedium, color = noteColor)
+        }
+
+        Spacer(Modifier.height(GroupGap))
+        PaperInvoice(invoice, onOpenSubscription)
+
+        Spacer(Modifier.height(GroupGap))
+        SectionTitle("Payments")
+        Panel {
+            if (invoice.payments.isEmpty()) {
                 Text(
-                    "Overdue by ${invoice.daysOverdue} day${if (invoice.daysOverdue == 1) "" else "s"}",
-                    color = MaterialTheme.colorScheme.error,
+                    "No payments recorded yet.",
                     style = MaterialTheme.typography.bodyMedium,
+                    color = Palette.TextMuted,
+                    modifier = Modifier.padding(16.dp),
                 )
             }
-        }
-
-        SectionCard(title = "Details") {
-            LabelValueRow("Invoice date", formatDate(invoice.invoiceDate))
-            LabelValueRow("Due date", formatDate(invoice.dueDate))
-            if (invoice.periodStart != null || invoice.periodEnd != null) {
-                LabelValueRow("Period", "${formatDate(invoice.periodStart)} – ${formatDate(invoice.periodEnd)}")
-            }
-            invoice.subscription?.let { sub ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Subscription",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = { onOpenSubscription(sub.id) }) { Text(sub.number) }
-                }
-            }
-        }
-
-        val billedTo = invoice.customerSnapshot
-        val from = invoice.company
-        if (billedTo != null || from != null) {
-            SectionCard(title = "Parties") {
-                billedTo?.let {
-                    PartyBlock("Billed to", it.name, it.billingAddress?.singleLine(), it.taxId)
-                }
-                if (billedTo != null && from != null) HorizontalDivider()
-                from?.let { PartyBlock("From", it.name, it.address, it.taxId) }
-            }
-        }
-
-        LinesCard(invoice.lines)
-
-        TotalsCard(
-            untaxedAmount = invoice.untaxedAmount,
-            discountTotal = invoice.discountTotal,
-            taxTotal = invoice.taxTotal,
-            total = invoice.total,
-            orderDiscount = invoice.orderDiscount,
-        ) {
-            LabelValueRow("Paid", formatMoney(invoice.amountPaid))
-            LabelValueRow("Balance", formatMoney(invoice.balance), emphasized = true)
-        }
-
-        SectionCard(title = "Payments") {
-            if (invoice.payments.isEmpty()) {
-                Text("No payments yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
             invoice.payments.forEachIndexed { index, payment ->
-                if (index > 0) HorizontalDivider()
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("${formatDate(payment.paymentDate)} · ${Labels.paymentMethod(payment.method)}", style = MaterialTheme.typography.bodyMedium)
-                        payment.note?.takeIf { it.isNotBlank() }?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                if (index > 0) PanelDivider()
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(Labels.paymentMethod(payment.method), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            listOfNotNull(formatDate(payment.paymentDate), payment.note?.takeIf { it.isNotBlank() }).joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Palette.TextMuted,
+                        )
                     }
-                    Text(formatMoney(payment.amount), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Money(payment.amount, style = MaterialTheme.typography.titleSmall)
                 }
             }
         }
     }
 }
 
+/** The invoice laid out like the printed document: issuer and number, bill-to and dates, lines, totals. */
 @Composable
-private fun PartyBlock(label: String, name: String, address: String?, taxId: String?) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-        address?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        taxId?.takeIf { it.isNotBlank() }?.let { Text("GSTIN $it", style = MaterialTheme.typography.bodySmall) }
+private fun PaperInvoice(invoice: InvoiceDetail, onOpenSubscription: (String) -> Unit) {
+    Panel(Modifier.testTag("invoice-paper")) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(invoice.company?.name ?: "Invoice", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                invoice.company?.address?.takeIf { it.isNotBlank() }?.let { Small(it) }
+                invoice.company?.taxId?.takeIf { it.isNotBlank() }?.let { Small("GSTIN $it") }
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Tax invoice", style = MaterialTheme.typography.bodySmall, color = Palette.TextMuted)
+                DocNumber(invoice.number, size = 13.sp, color = Palette.Text, fontWeight = FontWeight.Medium)
+                InvoiceStatus(invoice.status, invoice.isOverdue)
+            }
+        }
+        PanelDivider()
+
+        invoice.customerSnapshot?.let { billedTo ->
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Small("Bill to")
+                Text(billedTo.name, style = MaterialTheme.typography.titleSmall)
+                billedTo.billingAddress?.singleLine()?.takeIf { it.isNotBlank() }?.let { Small(it) }
+                billedTo.taxId?.takeIf { it.isNotBlank() }?.let { Small("GSTIN $it") }
+            }
+            PanelDivider()
+        }
+
+        Spacer(Modifier.height(10.dp))
+        KeyValueRow("Invoice date", formatDate(invoice.invoiceDate), dense = true)
+        KeyValueRow("Due date", formatDate(invoice.dueDate), dense = true)
+        if (invoice.periodStart != null || invoice.periodEnd != null) {
+            KeyValueRow("Period", "${formatDate(invoice.periodStart)} to ${formatDate(invoice.periodEnd)}", dense = true)
+        }
+        if (invoice.subscription == null) Spacer(Modifier.height(10.dp))
+        invoice.subscription?.let { sub ->
+            KeyValueRow("Subscription", onClick = { onOpenSubscription(sub.id) }) {
+                DocNumber(sub.number, size = 13.sp, color = Palette.Ink8)
+            }
+        }
+        PanelDivider()
+
+        LinesLedger(invoice.lines)
+        PanelDivider()
+        TotalsBlock(
+            untaxedAmount = invoice.untaxedAmount,
+            discountTotal = invoice.discountTotal,
+            taxTotal = invoice.taxTotal,
+            total = invoice.total,
+            orderDiscount = invoice.orderDiscount,
+        ) {
+            TotalRow("Paid", "−" + formatMoney(invoice.amountPaid))
+            PanelDivider(Modifier.padding(vertical = 4.dp))
+            TotalRow(
+                "Balance due",
+                formatMoney(invoice.balance),
+                strong = true,
+                color = if (invoice.isOverdue) StatusColors.overdue else Palette.Text,
+            )
+        }
     }
+}
+
+@Composable
+private fun Small(text: String) {
+    Text(text, style = MaterialTheme.typography.bodySmall, color = Palette.TextMuted, textAlign = TextAlign.Start)
 }

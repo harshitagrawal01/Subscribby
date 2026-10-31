@@ -1,70 +1,119 @@
 package com.subscribby.mobile.ui.components
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.subscribby.mobile.ui.theme.Palette
 
+/** Grey block that gently pulses while content loads. */
 @Composable
-fun LoadingView(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-}
-
-@Composable
-fun ErrorView(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
-    MessageView(
-        icon = Icons.Default.Warning,
-        title = "Couldn't load this",
-        message = message,
-        actionLabel = "Try again",
-        onAction = onRetry,
-        modifier = modifier,
+fun SkeletonBlock(width: Dp?, height: Dp, modifier: Modifier = Modifier) {
+    val pulse by rememberInfiniteTransition(label = "skeleton").animateFloat(
+        initialValue = 1f,
+        targetValue = 0.55f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "skeleton-alpha",
+    )
+    Spacer(
+        modifier
+            .then(if (width != null) Modifier.width(width) else Modifier.fillMaxWidth())
+            .height(height)
+            .alpha(pulse)
+            .clip(ControlShape)
+            .background(Palette.Placeholder),
     )
 }
 
+/** Rows shaped like a list of documents: title and meta on the left, amount and status on the right. */
 @Composable
-fun EmptyView(title: String, message: String, modifier: Modifier = Modifier) {
-    MessageView(icon = Icons.Default.Info, title = title, message = message, modifier = modifier)
+fun ListSkeleton(modifier: Modifier = Modifier, rows: Int = 4) {
+    Panel(modifier.testTag("loading")) {
+        repeat(rows) { index ->
+            if (index > 0) PanelDivider()
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SkeletonBlock(140.dp, 14.dp)
+                    SkeletonBlock(96.dp, 10.dp)
+                }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SkeletonBlock(72.dp, 14.dp)
+                    SkeletonBlock(48.dp, 10.dp)
+                }
+            }
+        }
+    }
 }
 
+/** A hero figure followed by a list: the shape of the home and detail screens. */
 @Composable
-private fun MessageView(
-    icon: ImageVector,
-    title: String,
+fun ScreenSkeleton(modifier: Modifier = Modifier, rows: Int = 3) {
+    Column(
+        modifier.fillMaxSize().padding(horizontal = ScreenPadding, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        SkeletonBlock(88.dp, 12.dp)
+        SkeletonBlock(180.dp, 32.dp)
+        SkeletonBlock(150.dp, 12.dp)
+        Spacer(Modifier.height(GroupGap - 10.dp))
+        ListSkeleton(rows = rows)
+    }
+}
+
+/** One line saying what failed, and "Try again". */
+@Composable
+fun ErrorState(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        // Scrollable so pull-to-refresh still works around it.
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(message, style = MaterialTheme.typography.bodyMedium)
+        SecondaryButton("Try again", onClick = onRetry, fillWidth = false, height = 40.dp)
+    }
+}
+
+/** One line saying why it's empty, and at most one action. */
+@Composable
+fun EmptyState(
     message: String,
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(40.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-        Text(
-            message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        if (actionLabel != null && onAction != null) Button(onClick = onAction) { Text(actionLabel) }
+    Panel(modifier) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(message, style = MaterialTheme.typography.bodyMedium, color = Palette.TextMuted)
+            if (actionLabel != null && onAction != null) {
+                TertiaryButton(onClick = onAction, contentPadding = PaddingValues(0.dp)) {
+                    Text(actionLabel, style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
     }
 }

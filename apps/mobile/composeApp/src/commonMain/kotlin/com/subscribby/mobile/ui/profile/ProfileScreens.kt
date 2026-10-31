@@ -1,39 +1,21 @@
 package com.subscribby.mobile.ui.profile
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,10 +23,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,15 +36,24 @@ import com.subscribby.mobile.data.api.userMessage
 import com.subscribby.mobile.data.repo.AuthRepository
 import com.subscribby.mobile.data.repo.SessionState
 import com.subscribby.mobile.ui.LocalAppContainer
-import com.subscribby.mobile.ui.components.BackButton
 import com.subscribby.mobile.ui.components.ConfirmDialog
 import com.subscribby.mobile.ui.components.FormBanner
 import com.subscribby.mobile.ui.components.FormTextField
-import com.subscribby.mobile.ui.components.LabelValueRow
+import com.subscribby.mobile.ui.components.GroupGap
+import com.subscribby.mobile.ui.components.KeyValueRow
+import com.subscribby.mobile.ui.components.Panel
+import com.subscribby.mobile.ui.components.PanelDivider
+import com.subscribby.mobile.ui.components.PanelShape
 import com.subscribby.mobile.ui.components.PasswordField
 import com.subscribby.mobile.ui.components.PasswordRulesChecklist
-import com.subscribby.mobile.ui.components.SectionCard
-import com.subscribby.mobile.util.passwordProblem
+import com.subscribby.mobile.ui.components.PrimaryButton
+import com.subscribby.mobile.ui.components.ScreenHeader
+import com.subscribby.mobile.ui.components.ScreenPadding
+import com.subscribby.mobile.ui.components.SecondaryButton
+import com.subscribby.mobile.ui.components.SectionTitle
+import com.subscribby.mobile.ui.components.TertiaryButton
+import com.subscribby.mobile.ui.theme.Palette
+import com.subscribby.mobile.util.newPasswordProblem
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
@@ -86,7 +76,7 @@ class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
         savingName = true
         viewModelScope.launch {
             try {
-                auth.updateName(name)
+                auth.updateName(name.trim())
                 message = "Name updated"
                 onDone()
             } catch (e: ApiException) {
@@ -103,7 +93,6 @@ class ProfileViewModel(private val auth: AuthRepository) : ViewModel() {
     fun logout() = auth.logout()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(onChangePassword: () -> Unit) {
     val container = LocalAppContainer.current
@@ -123,93 +112,83 @@ fun ProfileScreen(onChangePassword: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Profile") }) },
+        containerColor = Palette.Paper,
+        topBar = { ScreenHeader(title = "Profile") },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
+                .padding(horizontal = ScreenPadding).padding(top = 4.dp, bottom = 32.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Box(
-                    Modifier.size(56.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        user.name.trim().take(1).uppercase(),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(user.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    Text(user.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (vm.refreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-            }
-
-            SectionCard(title = "Account") {
-                LabelValueRow("Name", user.name)
-                LabelValueRow("Email", user.email)
-                TextButton(onClick = { editingName = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Edit name")
-                }
+            Spacer(Modifier.height(8.dp))
+            SectionTitle("Account")
+            Panel {
+                KeyValueRow("Name", user.name, onClick = { editingName = true })
+                PanelDivider()
+                KeyValueRow("Email", user.email)
+                PanelDivider()
+                KeyValueRow("Password", "Change", onClick = onChangePassword)
             }
 
             val customer = user.customer
-            SectionCard(title = "Company") {
-                LabelValueRow("Company", customer?.name ?: "—")
-                customer?.phone?.takeIf { it.isNotBlank() }?.let { LabelValueRow("Phone", it) }
-                customer?.billingAddress?.singleLine()?.takeIf { it.isNotBlank() }?.let { LabelValueRow("Billing address", it) }
-                customer?.taxId?.takeIf { it.isNotBlank() }?.let { LabelValueRow("GSTIN", it) }
-                Text(
-                    "To change company details, contact Brightloop billing.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Spacer(Modifier.height(GroupGap))
+            SectionTitle("Billing details")
+            Panel {
+                KeyValueRow("Company", customer?.name ?: "—")
+                customer?.phone?.takeIf { it.isNotBlank() }?.let { PanelDivider(); KeyValueRow("Phone", it) }
+                customer?.billingAddress?.singleLine()?.takeIf { it.isNotBlank() }?.let { PanelDivider(); KeyValueRow("Billing address", it) }
+                customer?.taxId?.takeIf { it.isNotBlank() }?.let { PanelDivider(); KeyValueRow("GSTIN", it) }
             }
+            Text(
+                "Only your billing team can change these details.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Palette.TextMuted,
+                modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+            )
 
-            OutlinedButton(onClick = onChangePassword, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Change password")
-            }
-            Button(
-                onClick = { confirmLogout = true },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                ),
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Log out")
+            Spacer(Modifier.height(GroupGap))
+            TertiaryButton(onClick = { confirmLogout = true }, destructive = true, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                Text("Log out", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
 
     if (editingName) {
         var name by rememberSaveable { mutableStateOf(user.name) }
-        val error = if (name.trim().length < 2) "Enter your name" else null
+        // Trimmed before checking and saving.
+        val error = if (name.trim().length < 2) "Enter your full name" else null
         AlertDialog(
             onDismissRequest = { editingName = false },
-            title = { Text("Edit name") },
-            text = { FormTextField(name, { name = it }, "Full name", error = error, imeAction = ImeAction.Done) },
-            confirmButton = {
-                TextButton(
-                    onClick = { vm.updateName(name) { editingName = false } },
-                    enabled = error == null && !vm.savingName,
-                ) { Text("Save") }
+            shape = PanelShape,
+            containerColor = Palette.Surface,
+            tonalElevation = 0.dp,
+            title = { Text("Edit your name", style = MaterialTheme.typography.titleMedium) },
+            text = {
+                FormTextField(
+                    name,
+                    { name = it },
+                    "Full name",
+                    error = error,
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Done,
+                )
             },
-            dismissButton = { TextButton(onClick = { editingName = false }) { Text("Cancel") } },
+            confirmButton = {
+                PrimaryButton(
+                    "Save name",
+                    onClick = { vm.updateName(name) { editingName = false } },
+                    enabled = error == null,
+                    loading = vm.savingName,
+                    fillWidth = false,
+                    height = 40.dp,
+                )
+            },
+            dismissButton = { SecondaryButton("Cancel", onClick = { editingName = false }, fillWidth = false, height = 40.dp) },
         )
     }
     if (confirmLogout) {
         ConfirmDialog(
-            title = "Log out?",
+            title = "Log out of Subscribby?",
             message = "You'll need your email and password to log back in.",
             confirmLabel = "Log out",
             destructive = true,
@@ -237,11 +216,12 @@ class ChangePasswordViewModel(private val auth: AuthRepository) : ViewModel() {
     fun onNew(v: String) { state = state.copy(new = v, errors = state.errors - "newPassword", formError = null) }
     fun onConfirm(v: String) { state = state.copy(confirm = v, errors = state.errors - "confirmPassword", formError = null) }
 
+    /** Passwords are never trimmed: the current one is sent as typed, a new one may not start or end with a space. */
     fun submit() {
         if (state.submitting) return
         val errors = buildMap {
             if (state.current.isEmpty()) put("currentPassword", "Enter your current password")
-            passwordProblem(state.new)?.let { put("newPassword", it) }
+            newPasswordProblem(state.new)?.let { put("newPassword", it) }
             if (state.new.isNotEmpty() && state.new == state.current) put("newPassword", "Must be different from the current password")
             if (state.confirm != state.new) put("confirmPassword", "Passwords do not match")
         }
@@ -265,10 +245,9 @@ class ChangePasswordViewModel(private val auth: AuthRepository) : ViewModel() {
 }
 
 /**
- * Change password from Profile, or — with [forced] — the "Set your password" step for accounts
+ * Change password from Profile, or, with [forced], the "Set your password" step for accounts
  * that still have a temporary password (`mustChangePassword: true`).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangePasswordScreen(onDone: () -> Unit, forced: Boolean = false) {
     val container = LocalAppContainer.current
@@ -277,31 +256,35 @@ fun ChangePasswordScreen(onDone: () -> Unit, forced: Boolean = false) {
     LaunchedEffect(s.done) { if (s.done) onDone() }
 
     Scaffold(
+        containerColor = Palette.Paper,
         topBar = {
-            TopAppBar(
-                title = { Text(if (forced) "Set your password" else "Change password") },
-                navigationIcon = { if (!forced) BackButton(onDone) },
-                actions = { if (forced) TextButton(onClick = { container.auth.logout() }) { Text("Log out") } },
-            )
+            if (forced) {
+                ScreenHeader(title = null) {
+                    Spacer(Modifier.weight(1f))
+                    TertiaryButton("Log out", onClick = { container.auth.logout() })
+                }
+            } else {
+                ScreenHeader(title = null, backLabel = "Profile", onBack = onDone)
+            }
         },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState())
+                .padding(horizontal = ScreenPadding).padding(top = 4.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            if (forced) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(if (forced) "Set your password" else "Change password", style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    "Your account has a temporary password. Choose your own to continue.",
+                    if (forced) "Your account has a temporary password. Choose your own to continue."
+                    else "You'll stay logged in on this device. Other devices will need the new password.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = Palette.TextMuted,
                 )
             }
             s.formError?.let { FormBanner(it) }
             PasswordField(s.current, vm::onCurrent, if (forced) "Temporary password" else "Current password", error = s.errors["currentPassword"])
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                PasswordField(s.new, vm::onNew, "New password", error = s.errors["newPassword"])
-                PasswordRulesChecklist(s.new)
-            }
+            PasswordField(s.new, vm::onNew, "New password", error = s.errors["newPassword"], below = { PasswordRulesChecklist(s.new) })
             PasswordField(
                 s.confirm,
                 vm::onConfirm,
@@ -310,9 +293,7 @@ fun ChangePasswordScreen(onDone: () -> Unit, forced: Boolean = false) {
                 imeAction = ImeAction.Done,
                 onImeAction = vm::submit,
             )
-            Button(onClick = vm::submit, enabled = !s.submitting, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                if (s.submitting) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Save password")
-            }
+            PrimaryButton("Save password", onClick = vm::submit, loading = s.submitting)
         }
     }
 }

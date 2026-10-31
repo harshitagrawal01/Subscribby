@@ -6,17 +6,25 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.subscribby.mobile.data.api.userMessage
+import com.subscribby.mobile.data.model.InvoiceListItem
 import com.subscribby.mobile.data.model.PortalSummary
 import com.subscribby.mobile.data.model.SubscriptionDetail
 import com.subscribby.mobile.data.model.SubscriptionListItem
+import com.subscribby.mobile.data.repo.InvoiceFilter
 import com.subscribby.mobile.data.repo.PortalRepository
 import com.subscribby.mobile.ui.components.LoadState
 import com.subscribby.mobile.util.Labels
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-data class HomeData(val summary: PortalSummary, val subscriptions: List<SubscriptionListItem>)
+/** [unpaid] gives the home screen a due date for the amount owed; it's optional. */
+data class HomeData(
+    val summary: PortalSummary,
+    val subscriptions: List<SubscriptionListItem>,
+    val unpaid: List<InvoiceListItem> = emptyList(),
+)
 
 class SubscriptionsViewModel(private val portal: PortalRepository) : ViewModel() {
     var state by mutableStateOf<LoadState<HomeData>>(LoadState.Loading)
@@ -31,7 +39,16 @@ class SubscriptionsViewModel(private val portal: PortalRepository) : ViewModel()
                 val data = coroutineScope {
                     val summary = async { portal.summary() }
                     val subs = async { portal.subscriptions().items }
-                    HomeData(summary.await(), subs.await())
+                    val unpaid = async {
+                        try {
+                            portal.invoices(InvoiceFilter.Unpaid).items
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                    HomeData(summary.await(), subs.await(), unpaid.await())
                 }
                 LoadState.Success(data)
             } catch (e: Exception) {

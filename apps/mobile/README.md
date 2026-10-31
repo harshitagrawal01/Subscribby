@@ -99,7 +99,8 @@ API listens on all interfaces, then set `API_BASE_URL_OVERRIDE = "http://192.168
 ./gradlew :composeApp:jvmTest      # needs the mock API running for the integration + UI tests
 ```
 
-- `commonTest/FormattingTest` — money (`12814800 → ₹1,28,148.00`, `295000 → ₹2,950.00`, `0 → ₹0.00`), dates, password rules.
+- `commonTest/FormattingTest` — money (`12814800 → ₹1,28,148.00`, `295000 → ₹2,950.00`, `0 → ₹0.00`), dates, password rules
+  (including "no space at the start or end" for new passwords), trimmed email check.
 - `jvmTest/ApiIntegrationTest` — logs in as `asha@kite.test`, decodes `/auth/me`, `/portal/summary`, `/portal/subscriptions`,
   every subscription and invoice detail into the Kotlin models; accept flow, INVALID_CREDENTIALS (incl. a staff account),
   EMAIL_TAKEN / field details, forgot-password, stale token → logout.
@@ -122,8 +123,9 @@ apps/mobile
 │       │   ├── data/repo/          SessionStore, AuthRepository, PortalRepository
 │       │   ├── data/AppContainer   manual DI container
 │       │   ├── platform/           KeyValueStore + expect platform defaults
-│       │   ├── ui/                 App + navigation, theme (violet #7048e8), components, auth/, subscriptions/, invoices/, profile/
+│       │   ├── ui/                 App + navigation, theme (ink on paper), components, auth/, subscriptions/, invoices/, profile/
 │       │   └── util/               Money.kt (paise → ₹ with Indian grouping), Dates.kt ("31 Oct 2026"), Validation, Labels
+│       ├── commonMain/composeResources/  fonts (IBM Plex Sans/Mono, Fraunces heading instance) + files/licenses
 │       ├── androidMain/            SharedPreferences store, OkHttp engine, 10.0.2.2 default
 │       ├── iosMain/                MainViewController(), NSUserDefaults store, Darwin engine
 │       ├── jvmMain/                desktop main(), java.util.prefs store, OkHttp engine
@@ -131,6 +133,15 @@ apps/mobile
 ├── iosApp/                         Xcode project; SwiftUI hosts the Compose MainViewController
 └── gradle/libs.versions.toml       version catalog
 ```
+
+## Design
+
+The UI follows the shared design reference in [`apps/web/docs/design.md`](../web/docs/design.md): ink #223A5E on warm
+paper #F7F5F1, white panels with warm-grey borders and no shadows, IBM Plex Sans with tabular figures for text and money,
+IBM Plex Mono only for document numbers, Fraunces for screen titles and the wordmark, status as a coloured dot plus text.
+Tokens live in `ui/theme/Theme.kt`; shared pieces (buttons, panels, status, ledger, skeletons) in `ui/components/`.
+Text inputs are trimmed before they are checked or sent; passwords are never trimmed, and a new password may not start or
+end with a space. Font and icon licences are in `composeResources/files/licenses/`.
 
 Rules the app follows (from the spec): money is integer paise and is only formatted, never calculated; action buttons come
 only from the server's `allowedActions`; a 401 `UNAUTHENTICATED` logs the user out; `forgot-password` always shows the same

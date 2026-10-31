@@ -3,6 +3,7 @@ package com.subscribby.mobile
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -32,7 +33,7 @@ import kotlin.test.Test
 
 /**
  * Headless end-to-end check of the shared Compose UI on the desktop target against the mock API:
- * log in → home (summary + pending quotation) → open quotation → Accept → confirm → status updates
+ * log in → home (amount due + pending quotation) → open quotation → Accept → confirm → status updates
  * → invoices tab → profile → log out. Also checks a staff account is refused.
  */
 @OptIn(ExperimentalTestApi::class, ExperimentalCoroutinesApi::class)
@@ -77,15 +78,15 @@ class UiFlowTest {
             }
         }
 
-        // Login
-        onNodeWithTag("login-email").performTextInput(MockApi.CUSTOMER_EMAIL)
+        // Login (spaces around the email are trimmed before sending; the password is sent as typed)
+        onNodeWithTag("login-email").performTextInput("  ${MockApi.CUSTOMER_EMAIL} ")
         onNodeWithTag("login-password").performTextInput(MockApi.CUSTOMER_PASSWORD)
         onNodeWithTag("login-submit").performClick()
 
-        // Home: summary card + pending quotation from /portal/summary
-        waitForText("My subscriptions")
-        waitForText("Quotation waiting for you")
-        onNodeWithText("₹2,950.00").assertExists() // outstanding for Kite Stores
+        // Home: amount due + pending quotation from /portal/summary
+        waitForText("Amount due")
+        waitForText("Waiting for your approval")
+        onNode(hasText("₹2,950.00") and hasAnyAncestor(hasTestTag("summary-card"))).assertExists() // outstanding for Kite Stores
         onNodeWithTag("subscriptions-list").performScrollToNode(hasText("Basic Monthly"))
 
         // Open the quotation and accept it (buttons come from allowedActions)
@@ -94,7 +95,7 @@ class UiFlowTest {
         waitUntil(timeoutMillis = 15_000) { onAllNodes(hasTestTag("action-accept")).fetchSemanticsNodes().isNotEmpty() }
         onNodeWithTag("action-reject").assertExists()
         onNodeWithTag("action-accept").performClick()
-        waitForText("Accept quotation?")
+        waitForText("Accept SUB/2026/0049?")
         // The dialog's confirm button shares the label; it is the last "Accept quotation" node.
         onAllNodes(hasText("Accept quotation")).let { nodes ->
             val count = nodes.fetchSemanticsNodes().size
@@ -105,8 +106,8 @@ class UiFlowTest {
 
         // Back to home: the pending quotation is gone
         onNode(hasContentDescription("Back")).performClick()
-        waitForText("My subscriptions")
-        waitUntil(timeoutMillis = 15_000) { onAllNodes(hasText("Quotation waiting for you")).fetchSemanticsNodes().isEmpty() }
+        waitForText("Amount due")
+        waitUntil(timeoutMillis = 15_000) { onAllNodes(hasText("Waiting for your approval")).fetchSemanticsNodes().isEmpty() }
 
         // Invoices tab with filter
         onNodeWithTag("tab-Invoices").performClick()
@@ -123,9 +124,9 @@ class UiFlowTest {
         onNodeWithTag("tab-Profile").performClick()
         waitForText("Kite Stores")
         onNodeWithText("Log out").performClick()
-        waitForText("Log out?")
+        waitForText("Log out of Subscribby?")
         onAllNodes(hasText("Log out")).let { nodes -> nodes[nodes.fetchSemanticsNodes().size - 1].performClick() }
-        waitForText("Manage your subscriptions and invoices.")
+        waitForText("See your subscriptions, invoices and payments.")
     }
 
     @Test

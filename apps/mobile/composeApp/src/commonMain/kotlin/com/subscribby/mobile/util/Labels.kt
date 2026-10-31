@@ -1,6 +1,6 @@
 package com.subscribby.mobile.util
 
-/** Human labels for API enum values. Colours live in ui/components/StatusChip.kt. */
+/** Human labels for API enum values. Colours live in ui/components/Values.kt. */
 object Labels {
     fun subscriptionStatus(status: String): String = when (status) {
         "draft" -> "Draft"
@@ -52,7 +52,7 @@ object Labels {
     /** Button text for a customer action from `allowedActions`. */
     fun action(action: String): String = when (action) {
         "accept" -> "Accept quotation"
-        "reject" -> "Reject"
+        "reject" -> "Reject quotation"
         "pause" -> "Pause"
         "resume" -> "Resume"
         "renew" -> "Renew"
@@ -60,14 +60,16 @@ object Labels {
         else -> action.replaceFirstChar { it.uppercase() }
     }
 
-    /** Confirm-dialog copy for each action: title to body. */
-    fun actionConfirm(action: String, number: String): Pair<String, String> = when (action) {
-        "accept" -> "Accept quotation?" to "You're confirming $number. Billing starts on the start date at the amounts shown."
-        "reject" -> "Reject quotation?" to "$number will be closed and can't be accepted later."
-        "pause" -> "Pause subscription?" to "No invoices are created for $number while it's paused."
-        "resume" -> "Resume subscription?" to "$number becomes active again and billing restarts."
-        "renew" -> "Renew subscription?" to "$number will be extended by one more term."
-        "close" -> "Close subscription?" to "$number will end and stop billing. This can't be undone."
+    /** Confirm-dialog copy for each action: title (naming the subscription) to body. */
+    fun actionConfirm(action: String, number: String, startDate: String? = null, price: String? = null): Pair<String, String> = when (action) {
+        "accept" -> "Accept $number?" to
+            if (startDate != null && price != null) "Billing starts on $startDate at $price."
+            else "Billing starts on the start date at the amounts shown."
+        "reject" -> "Reject $number?" to "The quotation will be closed and can't be accepted later."
+        "pause" -> "Pause $number?" to "No invoices are created while it's paused."
+        "resume" -> "Resume $number?" to "It becomes active again and billing restarts."
+        "renew" -> "Renew $number?" to "It will be extended by one more term."
+        "close" -> "Close $number?" to "It will end and stop billing. This can't be undone."
         else -> "Continue?" to "Run \"$action\" on $number?"
     }
 

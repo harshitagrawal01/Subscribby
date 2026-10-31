@@ -1,6 +1,10 @@
 package com.subscribby.mobile
 
+import com.subscribby.mobile.util.EDGE_SPACE_MESSAGE
 import com.subscribby.mobile.util.PASSWORD_RULES
+import com.subscribby.mobile.util.hasEdgeSpace
+import com.subscribby.mobile.util.isValidEmail
+import com.subscribby.mobile.util.newPasswordProblem
 import com.subscribby.mobile.util.formatDate
 import com.subscribby.mobile.util.formatMoney
 import com.subscribby.mobile.util.passwordProblem
@@ -49,5 +53,23 @@ class FormattingTest {
         assertNotNull(passwordProblem("Abcdefgh12")) // no special
         assertEquals(4, PASSWORD_RULES.count { !it.test("") })
         assertTrue(PASSWORD_RULES.all { it.test("Customer@2026!") })
+    }
+
+    @Test
+    fun newPasswordsCannotStartOrEndWithASpace() {
+        assertTrue(hasEdgeSpace(" Customer@2026!"))
+        assertTrue(hasEdgeSpace("Customer@2026! "))
+        assertTrue(!hasEdgeSpace("Customer @2026!")) // a space in the middle is fine
+        assertTrue(!hasEdgeSpace(""))
+        assertEquals(EDGE_SPACE_MESSAGE, newPasswordProblem(" Customer@2026!"))
+        assertEquals("Remove the space at the start or end", newPasswordProblem("Customer@2026! "))
+        assertNull(newPasswordProblem("Customer@2026!"))
+        assertNotNull(newPasswordProblem("short"))
+    }
+
+    @Test
+    fun emailsAreCheckedTrimmed() {
+        assertTrue(isValidEmail("  asha@kite.test "))
+        assertTrue(!isValidEmail("asha @kite.test"))
     }
 }

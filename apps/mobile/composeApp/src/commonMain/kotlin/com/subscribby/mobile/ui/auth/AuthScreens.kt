@@ -1,9 +1,11 @@
 package com.subscribby.mobile.ui.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,34 +14,40 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.subscribby.mobile.ui.LocalAppContainer
+import com.subscribby.mobile.ui.components.BrandMark
 import com.subscribby.mobile.ui.components.FormBanner
 import com.subscribby.mobile.ui.components.FormTextField
 import com.subscribby.mobile.ui.components.PasswordField
 import com.subscribby.mobile.ui.components.PasswordRulesChecklist
+import com.subscribby.mobile.ui.components.PrimaryButton
+import com.subscribby.mobile.ui.components.TertiaryButton
+import com.subscribby.mobile.ui.theme.Palette
 
-/** Centered, scrollable card-less layout shared by the three auth screens. */
+private val SheetShape = RoundedCornerShape(18.dp)
+private val SheetShadow = Color(0xFF3C2D14)
+
+/** Shared by the three auth screens: logo on warm paper, then a white sheet holding a left-aligned form. */
 @Composable
 private fun AuthShell(
     title: String,
@@ -47,29 +55,28 @@ private fun AuthShell(
     footer: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(Modifier.fillMaxSize(), color = Palette.AuthPaper) {
         Box(
             Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()),
             contentAlignment = Alignment.TopCenter,
         ) {
-            Column(
-                Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    "Subscribby",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(4.dp))
-                content()
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    footer()
+            Column(Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp)) {
+                BrandMark(Modifier.padding(start = 8.dp))
+                Spacer(Modifier.height(28.dp))
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .shadow(18.dp, SheetShape, ambientColor = SheetShadow.copy(alpha = 0.08f), spotColor = SheetShadow.copy(alpha = 0.30f))
+                        .background(Palette.Surface, SheetShape)
+                        .padding(horizontal = 22.dp, vertical = 28.dp),
+                ) {
+                    Text(title, style = MaterialTheme.typography.headlineLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Palette.TextMuted)
+                    Spacer(Modifier.height(28.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(20.dp), content = content)
+                    Spacer(Modifier.height(20.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) { footer() }
                 }
             }
         }
@@ -77,10 +84,9 @@ private fun AuthShell(
 }
 
 @Composable
-private fun SubmitButton(label: String, loading: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Button(onClick = onClick, enabled = !loading, modifier = modifier.fillMaxWidth().height(48.dp)) {
-        if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text(label)
-    }
+private fun FooterLink(prompt: String, action: String, onClick: () -> Unit) {
+    Text(prompt, style = MaterialTheme.typography.bodyMedium, color = Palette.TextMuted)
+    TertiaryButton(action, onClick = onClick)
 }
 
 @Composable
@@ -91,12 +97,9 @@ fun LoginScreen(onSignup: () -> Unit, onForgotPassword: () -> Unit) {
     val s = vm.state
 
     AuthShell(
-        title = "Log in",
-        subtitle = "Manage your subscriptions and invoices.",
-        footer = {
-            Text("New here?", style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = onSignup) { Text("Create an account") }
-        },
+        title = "Log in to Subscribby",
+        subtitle = "See your subscriptions, invoices and payments.",
+        footer = { FooterLink("New here?", "Create an account", onSignup) },
     ) {
         val banner = s.formError ?: notice
         if (banner != null) FormBanner(banner)
@@ -116,11 +119,13 @@ fun LoginScreen(onSignup: () -> Unit, onForgotPassword: () -> Unit) {
             imeAction = ImeAction.Done,
             onImeAction = vm::submit,
             modifier = Modifier.testTag("login-password"),
+            labelAction = {
+                TertiaryButton(onClick = onForgotPassword, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                    Text("Forgot password?", style = MaterialTheme.typography.labelMedium)
+                }
+            },
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onForgotPassword) { Text("Forgot password?") }
-        }
-        SubmitButton("Log in", s.submitting, vm::submit, Modifier.testTag("login-submit"))
+        PrimaryButton("Log in", onClick = vm::submit, loading = s.submitting, modifier = Modifier.testTag("login-submit"))
     }
 }
 
@@ -131,21 +136,28 @@ fun SignupScreen(onLogin: () -> Unit) {
     val s = vm.state
 
     AuthShell(
-        title = "Create your account",
-        subtitle = "See and manage your subscriptions without emailing anyone.",
-        footer = {
-            Text("Already have an account?", style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = onLogin) { Text("Log in") }
-        },
+        title = "Create an account",
+        subtitle = "Use the email your invoices go to, and your subscriptions show up straight away.",
+        footer = { FooterLink("Already have an account?", "Log in", onLogin) },
     ) {
         s.formError?.let { FormBanner(it) }
-        FormTextField(s.name, vm::onName, "Full name", error = s.errors["name"])
-        FormTextField(s.company, vm::onCompany, "Company", error = s.errors["companyName"], supporting = "Optional")
+        FormTextField(s.name, vm::onName, "Full name", error = s.errors["name"], capitalization = KeyboardCapitalization.Words)
+        FormTextField(
+            s.company,
+            vm::onCompany,
+            "Company",
+            error = s.errors["companyName"],
+            hint = "Optional",
+            capitalization = KeyboardCapitalization.Words,
+        )
         FormTextField(s.email, vm::onEmail, "Email", error = s.errors["email"], keyboardType = KeyboardType.Email)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            PasswordField(s.password, vm::onPassword, "Password", error = s.errors["password"])
-            PasswordRulesChecklist(s.password)
-        }
+        PasswordField(
+            s.password,
+            vm::onPassword,
+            "Password",
+            error = s.errors["password"],
+            below = { PasswordRulesChecklist(s.password) },
+        )
         PasswordField(
             s.confirm,
             vm::onConfirm,
@@ -154,7 +166,7 @@ fun SignupScreen(onLogin: () -> Unit) {
             imeAction = ImeAction.Done,
             onImeAction = vm::submit,
         )
-        SubmitButton("Create account", s.submitting, vm::submit)
+        PrimaryButton("Create account", onClick = vm::submit, loading = s.submitting)
     }
 }
 
@@ -165,16 +177,16 @@ fun ForgotPasswordScreen(onBackToLogin: () -> Unit) {
     val s = vm.state
 
     AuthShell(
-        title = "Forgot password",
-        subtitle = "We'll email you a link to set a new password. It works once and expires in 30 minutes.",
-        footer = { TextButton(onClick = onBackToLogin) { Text("Back to login") } },
+        title = "Reset your password",
+        subtitle = "We'll email a link that works once, for 30 minutes.",
+        footer = { FooterLink("Remembered it?", "Back to log in", onBackToLogin) },
     ) {
         if (s.sentTo != null) {
             FormBanner("If an account exists for ${s.sentTo}, a reset link is on its way.", success = true)
             Text(
-                "Open the link from the email to choose a new password, then come back and log in.",
+                "Open the link in that email to choose a new password, then log in here.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Palette.TextMuted,
             )
         } else {
             FormTextField(
@@ -186,7 +198,7 @@ fun ForgotPasswordScreen(onBackToLogin: () -> Unit) {
                 imeAction = ImeAction.Done,
                 onImeAction = vm::submit,
             )
-            SubmitButton("Send reset link", s.submitting, vm::submit)
+            PrimaryButton("Send reset link", onClick = vm::submit, loading = s.submitting)
         }
     }
 }

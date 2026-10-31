@@ -1,0 +1,14 @@
+Fonts bundled in composeResources/font, all under the SIL Open Font License 1.1.
+
+ibm_plex_sans_{regular,medium,semibold}.ttf
+  IBM Plex Sans 3.005, static TTFs from github.com/IBM/plex release @ibm/plex-sans@1.1.0.
+  Licence: IBM-Plex-OFL.txt
+
+ibm_plex_mono_{regular,medium}.ttf
+  IBM Plex Mono 2.005, static TTFs from github.com/IBM/plex release @ibm/plex-mono@2.5.0.
+  Licence: IBM-Plex-OFL.txt
+
+fraunces_heading.ttf
+  Static instance of Fraunces[SOFT,WONK,opsz,wght].ttf from github.com/google/fonts (ofl/fraunces),
+  pinned with fontTools varLib.instancer at wght 640, SOFT 100, WONK 1, opsz 48.
+  Licence: Fraunces-OFL.txt
