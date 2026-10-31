@@ -7,7 +7,11 @@ const User = require("../models/User");
 const Customer = require("../models/Customer");
 const env = require("../config/env");
 const { Errors } = require("../utils/errors");
-const { assertValidPassword, isValidEmail } = require("../utils/validators");
+const {
+  checkPasswordRules,
+  assertValidPassword,
+  isValidEmail,
+} = require("../utils/validators");
 const { signToken, authenticate } = require("../middleware/auth");
 const { sendPasswordReset } = require("../services/mailer");
 
@@ -49,11 +53,11 @@ router.post("/customer/signup", authLimiter, async (req, res, next) => {
     if (!email || !isValidEmail(email)) {
       details.push({ field: "email", message: "A valid email is required" });
     }
+    details.push(...checkPasswordRules(password, "password"));
+
     if (details.length > 0) {
       throw Errors.validation("Some fields are invalid", details);
     }
-
-    assertValidPassword(password, "password");
 
     const normalizedEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: normalizedEmail });
@@ -165,6 +169,7 @@ router.get("/me", authenticate, async (req, res, next) => {
       role: user.role,
       status: user.status,
       mustChangePassword: Boolean(user.mustChangePassword),
+      customerId: user.customerId ? String(user.customerId) : null,
       lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
     };
 
@@ -260,20 +265,12 @@ router.post("/change-password", authenticate, async (req, res, next) => {
 
     user.passwordHash = await bcrypt.hash(newPassword, 10);
     user.mustChangePassword = false;
-    // Subtract 1s buffer or set exact current time so tokens issued before now are rejected
-    user.passwordChangedAt = new Date(Date.now() + 1000);
+    user.passwordChangedAt = new Date(
+      Math.max(Date.now(), (user.passwordChangedAt ? user.passwordChangedAt.getTime() : 0) + 1)
+    );
     await user.save();
 
-    // Sign fresh token after updating passwordChangedAt
-    const token = jwt.sign(
-      {
-        sub: String(user._id),
-        role: user.role,
-        iat: Math.floor(user.passwordChangedAt.getTime() / 1000) + 1,
-      },
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN }
-    );
+    const token = signToken(user);
 
     return res.json({
       data: {
@@ -376,18 +373,12 @@ router.post("/reset-password", authLimiter, async (req, res, next) => {
     user.mustChangePassword = false;
     user.resetTokenHash = null;
     user.resetTokenExpiresAt = null;
-    user.passwordChangedAt = new Date(Date.now() + 1000);
+    user.passwordChangedAt = new Date(
+      Math.max(Date.now(), (user.passwordChangedAt ? user.passwordChangedAt.getTime() : 0) + 1)
+    );
     await user.save();
 
-    const jwtToken = jwt.sign(
-      {
-        sub: String(user._id),
-        role: user.role,
-        iat: Math.floor(user.passwordChangedAt.getTime() / 1000) + 1,
-      },
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN }
-    );
+    const jwtToken = signToken(user);
 
     return res.json({
       data: {

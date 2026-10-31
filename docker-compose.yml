@@ -14,7 +14,11 @@ services:
 
   api:
     build: ./apps/api
-    env_file: ./apps/api/.env
+    env_file:
+      - path: ./apps/api/.env
+        required: false
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/Subscribby?replicaSet=rs0
     ports:
       - "4000:4000"
     depends_on:

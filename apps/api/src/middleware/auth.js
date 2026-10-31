@@ -8,6 +8,7 @@ function signToken(user) {
     {
       sub: String(user._id || user.id),
       role: user.role,
+      pwdTs: user.passwordChangedAt ? user.passwordChangedAt.getTime() : 0,
     },
     env.JWT_SECRET,
     { expiresIn: env.JWT_EXPIRES_IN }
@@ -43,13 +44,17 @@ async function authenticate(req, res, next) {
     }
 
     if (user.status === "disabled") {
-      throw Errors.unauthenticated("Account is disabled");
+      throw Errors.accountDisabled("Account is disabled");
     }
 
     // Reject tokens issued before the user's last password change
-    if (user.passwordChangedAt && payload.iat) {
-      const changedAtSec = Math.floor(user.passwordChangedAt.getTime() / 1000);
-      if (payload.iat < changedAtSec) {
+    if (user.passwordChangedAt) {
+      const changedMs = user.passwordChangedAt.getTime();
+      if (payload.pwdTs !== undefined) {
+        if (payload.pwdTs < changedMs) {
+          throw Errors.unauthenticated("Token invalidated by password change");
+        }
+      } else if (payload.iat && payload.iat < Math.floor(changedMs / 1000)) {
         throw Errors.unauthenticated("Token invalidated by password change");
       }
     }

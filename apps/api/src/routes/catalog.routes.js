@@ -6,7 +6,7 @@ const QuotationTemplate = require("../models/QuotationTemplate");
 const Subscription = require("../models/Subscription");
 const { authenticate, requireRole } = require("../middleware/auth");
 const { Errors } = require("../utils/errors");
-const { assertIntegerPaise } = require("../utils/validators");
+const { assertIntegerPaise, escapeRegex } = require("../utils/validators");
 const { isValidDateString } = require("../utils/date");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 
@@ -15,6 +15,61 @@ const router = express.Router();
 // ==========================================
 // PRODUCTS (/api/v1/products)
 // ==========================================
+
+function validateAndCleanVariants(variants) {
+  if (!Array.isArray(variants)) {
+    throw Errors.validation("Some fields are invalid", [
+      { field: "variants", message: "Variants must be an array" },
+    ]);
+  }
+
+  const details = [];
+  const cleaned = variants.map((v, i) => {
+    const attr = v && v.attribute ? String(v.attribute).trim() : "";
+    const val = v && v.value ? String(v.value).trim() : "";
+    if (!attr) {
+      details.push({
+        field: `variants[${i}].attribute`,
+        message: "Variant attribute is required",
+      });
+    }
+    if (!val) {
+      details.push({
+        field: `variants[${i}].value`,
+        message: "Variant value is required",
+      });
+    }
+    const extra = v && v.extraPrice !== undefined && v.extraPrice !== null ? v.extraPrice : 0;
+    if (typeof extra !== "number" || !Number.isInteger(extra) || extra < 0) {
+      details.push({
+        field: `variants[${i}].extraPrice`,
+        message: "Must be an integer in paise (>= 0)",
+      });
+    }
+    const item = {
+      attribute: attr,
+      value: val,
+      extraPrice: extra,
+    };
+    if (v && (v.id || v._id)) {
+      const rawId = String(v.id || v._id);
+      if (!mongoose.isValidObjectId(rawId)) {
+        details.push({
+          field: `variants[${i}].id`,
+          message: "Invalid variant ID format",
+        });
+      } else {
+        item._id = new mongoose.Types.ObjectId(rawId);
+      }
+    }
+    return item;
+  });
+
+  if (details.length > 0) {
+    throw Errors.validation("Some fields are invalid", details);
+  }
+  return cleaned;
+}
 
 router.get(
   "/products",
@@ -30,7 +85,7 @@ router.get(
         filter.isActive = req.query.isActive === "true";
       }
       if (req.query.search) {
-        filter.name = new RegExp(req.query.search.trim(), "i");
+        filter.name = new RegExp(escapeRegex(req.query.search.trim()), "i");
       }
 
       const [products, total] = await Promise.all([
@@ -40,7 +95,7 @@ router.get(
 
       const productIds = products.map((p) => p._id);
       const planCounts = await Plan.aggregate([
-        { $match: { productId: { $in: productIds } } },
+        { $match: { productId: { $in: productIds }, isActive: true } },
         { $group: { _id: "$productId", count: { $sum: 1 } } },
       ]);
       const countMap = new Map(planCounts.map((c) => [String(c._id), c.count]));
@@ -78,25 +133,7 @@ router.post(
       assertIntegerPaise(salesPrice, "salesPrice", false, 0);
       assertIntegerPaise(costPrice, "costPrice", false, 0);
 
-      if (!Array.isArray(variants)) {
-        throw Errors.validation("Some fields are invalid", [
-          { field: "variants", message: "Variants must be an array" },
-        ]);
-      }
-
-      const cleanVariants = variants.map((v, i) => {
-        if (!v.attribute || !v.value) {
-          throw Errors.validation("Some fields are invalid", [
-            { field: `variants.${i}`, message: "Variant attribute and value are required" },
-          ]);
-        }
-        assertIntegerPaise(v.extraPrice ?? 0, `variants.${i}.extraPrice`, false, 0);
-        return {
-          attribute: String(v.attribute).trim(),
-          value: String(v.value).trim(),
-          extraPrice: v.extraPrice ?? 0,
-        };
-      });
+      const cleanVariants = validateAndCleanVariants(variants);
 
       const product = await Product.create({
         name: name.trim(),
@@ -129,7 +166,10 @@ router.get(
       const product = await Product.findById(req.params.id);
       if (!product) throw Errors.notFound();
 
-      const usedInPlans = await Plan.countDocuments({ productId: product._id });
+      const usedInPlans = await Plan.countDocuments({
+        productId: product._id,
+        isActive: true,
+      });
       return res.json({
         data: {
           ...product.toJSON(),
@@ -181,15 +221,11 @@ router.patch(
       if (isActive !== undefined) product.isActive = Boolean(isActive);
 
       if (variants !== undefined) {
-        if (!Array.isArray(variants)) {
-          throw Errors.validation("Some fields are invalid", [
-            { field: "variants", message: "Variants must be an array" },
-          ]);
-        }
+        const cleanVariants = validateAndCleanVariants(variants);
 
         const existingVariantIds = product.variants.map((v) => String(v._id));
         const incomingIds = new Set(
-          variants.filter((v) => v.id || v._id).map((v) => String(v.id || v._id))
+          cleanVariants.filter((v) => v._id).map((v) => String(v._id))
         );
         const removedVariantIds = existingVariantIds.filter((id) => !incomingIds.has(id));
 
@@ -205,22 +241,14 @@ router.patch(
           }
         }
 
-        product.variants = variants.map((v, i) => {
-          assertIntegerPaise(v.extraPrice ?? 0, `variants.${i}.extraPrice`, false, 0);
-          const item = {
-            attribute: String(v.attribute).trim(),
-            value: String(v.value).trim(),
-            extraPrice: v.extraPrice ?? 0,
-          };
-          if (v.id || v._id) {
-            item._id = new mongoose.Types.ObjectId(String(v.id || v._id));
-          }
-          return item;
-        });
+        product.variants = cleanVariants;
       }
 
       await product.save();
-      const usedInPlans = await Plan.countDocuments({ productId: product._id });
+      const usedInPlans = await Plan.countDocuments({
+        productId: product._id,
+        isActive: true,
+      });
       return res.json({
         data: {
           ...product.toJSON(),
@@ -285,7 +313,7 @@ router.get(
         filter.isActive = req.query.isActive === "true";
       }
       if (req.query.search) {
-        filter.name = new RegExp(req.query.search.trim(), "i");
+        filter.name = new RegExp(escapeRegex(req.query.search.trim()), "i");
       }
       if (req.query.availableOn) {
         const dt = req.query.availableOn;
@@ -327,6 +355,11 @@ router.post(
       if (!name || typeof name !== "string" || !name.trim()) {
         throw Errors.validation("Some fields are invalid", [
           { field: "name", message: "Plan name is required" },
+        ]);
+      }
+      if (!productId || !mongoose.isValidObjectId(productId)) {
+        throw Errors.validation("Some fields are invalid", [
+          { field: "productId", message: "Valid productId is required" },
         ]);
       }
       const product = await Product.findById(productId);
@@ -414,6 +447,7 @@ router.patch(
 
       const {
         name,
+        productId,
         price,
         billingPeriod,
         minQuantity,
@@ -424,7 +458,28 @@ router.patch(
         isActive,
       } = req.body || {};
 
-      if (name !== undefined) plan.name = String(name).trim();
+      if (name !== undefined) {
+        if (!name || typeof name !== "string" || !name.trim()) {
+          throw Errors.validation("Some fields are invalid", [
+            { field: "name", message: "Plan name cannot be empty" },
+          ]);
+        }
+        plan.name = name.trim();
+      }
+      if (productId !== undefined) {
+        if (!productId || !mongoose.isValidObjectId(productId)) {
+          throw Errors.validation("Some fields are invalid", [
+            { field: "productId", message: "Valid productId is required" },
+          ]);
+        }
+        const product = await Product.findById(productId);
+        if (!product) {
+          throw Errors.validation("Some fields are invalid", [
+            { field: "productId", message: "Product not found" },
+          ]);
+        }
+        plan.productId = product._id;
+      }
       if (price !== undefined) {
         assertIntegerPaise(price, "price", false, 0);
         plan.price = price;
@@ -538,24 +593,52 @@ async function formatTemplateDetail(tpl) {
   return obj;
 }
 
-async function validateTemplateLines(plan, lines) {
-  if (!Array.isArray(lines) || lines.length === 0) {
+async function resolveAndValidateTemplateLines(plan, rawLines) {
+  let lines = rawLines;
+  if (!lines || (Array.isArray(lines) && lines.length === 0)) {
+    lines = [
+      {
+        productId: String(plan.productId),
+        variantId: null,
+        quantity: plan.minQuantity,
+      },
+    ];
+  }
+  if (!Array.isArray(lines)) {
     throw Errors.validation("Some fields are invalid", [
-      { field: "lines", message: "At least one line is required" },
+      { field: "lines", message: "lines must be an array" },
     ]);
   }
 
   let planProductQty = 0;
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || !line.productId || !mongoose.isValidObjectId(line.productId)) {
+      throw Errors.validation("Some fields are invalid", [
+        { field: `lines[${i}].productId`, message: "Valid productId is required" },
+      ]);
+    }
+    if (!Number.isInteger(line.quantity) || line.quantity < 1) {
+      throw Errors.validation("Some fields are invalid", [
+        { field: `lines[${i}].quantity`, message: "Quantity must be an integer >= 1" },
+      ]);
+    }
     if (String(line.productId) === String(plan.productId)) {
-      planProductQty += line.quantity || 0;
+      planProductQty += line.quantity;
     }
   }
+
   if (planProductQty < plan.minQuantity) {
     throw Errors.belowMinQuantity(
       `The line for the plan's product must have quantity >= ${plan.minQuantity}`
     );
   }
+
+  return lines.map((l) => ({
+    productId: l.productId,
+    variantId: l.variantId || null,
+    quantity: l.quantity,
+  }));
 }
 
 router.get(
@@ -571,7 +654,7 @@ router.get(
         filter.isActive = req.query.isActive === "true";
       }
       if (req.query.search) {
-        filter.name = new RegExp(req.query.search.trim(), "i");
+        filter.name = new RegExp(escapeRegex(req.query.search.trim()), "i");
       }
 
       const [templates, total] = await Promise.all([
@@ -598,7 +681,7 @@ router.post(
         planId,
         validityDays = 14,
         paymentTermDays = 0,
-        lines = [],
+        lines,
         notes = "",
       } = req.body || {};
 
@@ -608,6 +691,11 @@ router.post(
         ]);
       }
 
+      if (!planId || !mongoose.isValidObjectId(planId)) {
+        throw Errors.validation("Some fields are invalid", [
+          { field: "planId", message: "Valid planId is required" },
+        ]);
+      }
       const plan = await Plan.findById(planId);
       if (!plan) {
         throw Errors.validation("Some fields are invalid", [
@@ -615,18 +703,14 @@ router.post(
         ]);
       }
 
-      await validateTemplateLines(plan, lines);
+      const cleanLines = await resolveAndValidateTemplateLines(plan, lines);
 
       const tpl = await QuotationTemplate.create({
         name: name.trim(),
         planId: plan._id,
         validityDays,
         paymentTermDays,
-        lines: lines.map((l) => ({
-          productId: l.productId,
-          variantId: l.variantId || null,
-          quantity: l.quantity,
-        })),
+        lines: cleanLines,
         notes,
         isActive: true,
       });
@@ -676,12 +760,7 @@ router.patch(
       if (!plan) throw Errors.notFound("Plan not found");
 
       if (lines !== undefined) {
-        await validateTemplateLines(plan, lines);
-        tpl.lines = lines.map((l) => ({
-          productId: l.productId,
-          variantId: l.variantId || null,
-          quantity: l.quantity,
-        }));
+        tpl.lines = await resolveAndValidateTemplateLines(plan, lines);
       }
 
       await tpl.save();

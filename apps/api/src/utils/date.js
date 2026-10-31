@@ -60,6 +60,22 @@ function daysBetween(laterDateStr, earlierDateStr) {
   return differenceInCalendarDays(parseISO(laterDateStr), parseISO(earlierDateStr));
 }
 
+/**
+ * Extends expiryDate by one more term of the same length as startDate -> expiryDate.
+ */
+function nextTermExpiry(startDateStr, expiryDateStr) {
+  const start = parseISO(startDateStr);
+  const exp = parseISO(expiryDateStr);
+  for (let months = 1; months <= 120; months++) {
+    if (format(addDays(addMonths(start, months), -1), "yyyy-MM-dd") === expiryDateStr) {
+      const dayAfterExp = addDays(exp, 1);
+      return format(addDays(addMonths(dayAfterExp, months), -1), "yyyy-MM-dd");
+    }
+  }
+  const diff = differenceInCalendarDays(exp, start);
+  return format(addDays(exp, diff + 1), "yyyy-MM-dd");
+}
+
 module.exports = {
   DATE_REGEX,
   todayIST,
@@ -68,4 +84,5 @@ module.exports = {
   computePeriodEnd,
   defaultExpiryDate,
   daysBetween,
+  nextTermExpiry,
 };

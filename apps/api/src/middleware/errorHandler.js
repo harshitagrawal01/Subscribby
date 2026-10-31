@@ -46,12 +46,70 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  // Invalid MongoDB ObjectId cast error -> 404 NOT_FOUND
-  if (err && err.name === "CastError" && err.kind === "ObjectId") {
-    return res.status(404).json({
+  // Malformed JSON or body too large
+  if (
+    err &&
+    (err.type === "entity.parse.failed" ||
+      err.type === "entity.too.large" ||
+      (err instanceof SyntaxError && err.status === 400))
+  ) {
+    return res.status(400).json({
       error: {
-        code: "NOT_FOUND",
-        message: "Resource not found",
+        code: "VALIDATION_ERROR",
+        message:
+          err.type === "entity.too.large"
+            ? "Request body exceeds maximum allowed size"
+            : "Malformed JSON in request body",
+      },
+    });
+  }
+
+  // Mongoose ValidationError -> 400 VALIDATION_ERROR
+  if (err && err.name === "ValidationError" && err.errors) {
+    const details = Object.values(err.errors).map((e) => ({
+      field: e.path || "body",
+      message: e.message,
+    }));
+    return res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Some fields are invalid",
+        details,
+      },
+    });
+  }
+
+  // BSONError / BSONTypeError from new ObjectId(badId) -> 400 VALIDATION_ERROR
+  if (err && (err.name === "BSONError" || err.name === "BSONTypeError")) {
+    return res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Invalid ID format",
+        details: [{ field: "id", message: err.message }],
+      },
+    });
+  }
+
+  // CastError: route _id lookup -> 404 NOT_FOUND; field cast error -> 400 VALIDATION_ERROR
+  if (err && err.name === "CastError") {
+    if (err.kind === "ObjectId" && err.path === "_id") {
+      return res.status(404).json({
+        error: {
+          code: "NOT_FOUND",
+          message: "Resource not found",
+        },
+      });
+    }
+    return res.status(400).json({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Some fields are invalid",
+        details: [
+          {
+            field: err.path || "body",
+            message: `Invalid value for ${err.path || "field"}`,
+          },
+        ],
       },
     });
   }

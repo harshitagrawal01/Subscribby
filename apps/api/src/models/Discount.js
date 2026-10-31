@@ -43,10 +43,12 @@ discountSchema.index({ isActive: 1, startDate: 1, endDate: 1 });
 applyToJSON(discountSchema);
 
 /**
- * Computes discount state: inactive | scheduled | running | expired | exhausted
+ * Computes discount state: inactive | expired | scheduled | exhausted | running
  */
 function computeDiscountState(discount, onDate = todayIST()) {
   if (!discount.isActive) return "inactive";
+  if (onDate > discount.endDate) return "expired";
+  if (onDate < discount.startDate) return "scheduled";
   if (
     discount.usageLimit !== null &&
     discount.usageLimit !== undefined &&
@@ -54,8 +56,6 @@ function computeDiscountState(discount, onDate = todayIST()) {
   ) {
     return "exhausted";
   }
-  if (onDate < discount.startDate) return "scheduled";
-  if (onDate > discount.endDate) return "expired";
   return "running";
 }
 

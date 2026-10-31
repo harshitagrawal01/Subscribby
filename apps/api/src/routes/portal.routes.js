@@ -7,7 +7,7 @@ const { formatSubscriptionDetail } = require("./subscriptions.routes");
 const { formatInvoiceDetail, computeOverdueInfo } = require("./invoices.routes");
 const { authenticate, requireRole } = require("../middleware/auth");
 const { Errors } = require("../utils/errors");
-const { todayIST, defaultExpiryDate, addDaysStr, isValidDateString } = require("../utils/date");
+const { todayIST, nextTermExpiry, isValidDateString } = require("../utils/date");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 
 const router = express.Router();
@@ -375,8 +375,17 @@ router.post("/subscriptions/:id/renew", requireSelfServiceFlag, async (req, res,
     const plan = await Plan.findById(sub.planId);
     if (!plan?.rules?.renewable) throw Errors.planRule();
 
-    const dayAfterExpiry = addDaysStr(sub.expiryDate, 1);
-    sub.expiryDate = defaultExpiryDate(dayAfterExpiry);
+    let newExpiryDate = req.body?.newExpiryDate;
+    if (newExpiryDate) {
+      if (!isValidDateString(newExpiryDate) || newExpiryDate <= sub.expiryDate) {
+        throw Errors.validation("Some fields are invalid", [
+          { field: "newExpiryDate", message: "newExpiryDate must be after current expiryDate" },
+        ]);
+      }
+    } else {
+      newExpiryDate = nextTermExpiry(sub.startDate, sub.expiryDate);
+    }
+    sub.expiryDate = newExpiryDate;
     sub.history.unshift({
       at: new Date(),
       by: req.user._id,

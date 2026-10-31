@@ -2,14 +2,30 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 const multer = require("multer");
+const rateLimit = require("express-rate-limit");
 const { parse } = require("csv-parse/sync");
 const User = require("../models/User");
+const env = require("../config/env");
 const { authenticate, requireRole } = require("../middleware/auth");
 const { Errors } = require("../utils/errors");
-const { checkPasswordRules, assertValidPassword, isValidEmail } = require("../utils/validators");
+const {
+  checkPasswordRules,
+  assertValidPassword,
+  isValidEmail,
+  escapeRegex,
+} = require("../utils/validators");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 
 const router = express.Router();
+
+const importLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: env.NODE_ENV === "development" ? 100 : 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { trustProxy: false },
+  handler: (req, res, next) => next(Errors.rateLimited()),
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -47,6 +63,7 @@ router.post(
   "/import",
   authenticate,
   requireRole("admin"),
+  importLimiter,
   upload.single("file"),
   async (req, res, next) => {
     try {
@@ -200,6 +217,16 @@ router.post(
           await session.withTransaction(async () => {
             await User.insertMany(docsToInsert, { session });
           });
+        } catch (txErr) {
+          if (
+            txErr &&
+            typeof txErr.message === "string" &&
+            txErr.message.includes("Transaction numbers are only allowed on a replica set")
+          ) {
+            await User.insertMany(docsToInsert);
+          } else {
+            throw txErr;
+          }
         } finally {
           await session.endSession();
         }
@@ -245,7 +272,7 @@ router.get("/", authenticate, requireRole("admin"), async (req, res, next) => {
     if (req.query.role) filter.role = req.query.role;
     if (req.query.status) filter.status = req.query.status;
     if (req.query.search) {
-      const rx = new RegExp(req.query.search.trim(), "i");
+      const rx = new RegExp(escapeRegex(req.query.search.trim()), "i");
       filter.$or = [{ name: rx }, { email: rx }];
     }
 
@@ -383,7 +410,9 @@ router.post(
 
       user.passwordHash = await bcrypt.hash(temporaryPassword, 10);
       user.mustChangePassword = true;
-      user.passwordChangedAt = new Date(Date.now() + 1000);
+      user.passwordChangedAt = new Date(
+        Math.max(Date.now(), (user.passwordChangedAt ? user.passwordChangedAt.getTime() : 0) + 1)
+      );
       await user.save();
 
       return res.json({ data: user.toJSON() });

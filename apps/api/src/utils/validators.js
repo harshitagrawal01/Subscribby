@@ -66,9 +66,14 @@ function assertIntegerPaise(val, fieldName, allowNull = false, min = 0) {
   }
 }
 
+function escapeRegex(str) {
+  return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 module.exports = {
   checkPasswordRules,
   assertValidPassword,
   isValidEmail,
   assertIntegerPaise,
+  escapeRegex,
 };

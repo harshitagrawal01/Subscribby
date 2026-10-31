@@ -5,7 +5,7 @@ const Subscription = require("../models/Subscription");
 const Invoice = require("../models/Invoice");
 const { authenticate, requireRole } = require("../middleware/auth");
 const { Errors } = require("../utils/errors");
-const { isValidEmail } = require("../utils/validators");
+const { isValidEmail, escapeRegex } = require("../utils/validators");
 const { todayIST } = require("../utils/date");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 
@@ -104,7 +104,7 @@ router.get(
         filter.isActive = req.query.isActive === "true";
       }
       if (req.query.search) {
-        const rx = new RegExp(req.query.search.trim(), "i");
+        const rx = new RegExp(escapeRegex(req.query.search.trim()), "i");
         filter.$or = [{ name: rx }, { email: rx }, { contactName: rx }];
       }
 
@@ -124,7 +124,11 @@ router.get(
         });
         if (req.query.hasActiveSubscription === "true") {
           filter._id = filter._id
-            ? { $in: filter._id.$in.filter((id) => activeCustomerIds.some((a) => String(a) === String(id))) }
+            ? {
+                $in: filter._id.$in.filter((id) =>
+                  activeCustomerIds.some((a) => String(a) === String(id))
+                ),
+              }
             : { $in: activeCustomerIds };
         } else if (req.query.hasActiveSubscription === "false") {
           filter._id = { $nin: activeCustomerIds };

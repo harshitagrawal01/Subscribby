@@ -1,8 +1,9 @@
 const express = require("express");
 const Tax = require("../models/Tax");
-const { Discount, computeDiscountState, formatDiscountResponse } = require("../models/Discount");
+const { Discount, formatDiscountResponse } = require("../models/Discount");
 const { authenticate, requireRole } = require("../middleware/auth");
 const { Errors } = require("../utils/errors");
+const { escapeRegex } = require("../utils/validators");
 const { isValidDateString, todayIST } = require("../utils/date");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 
@@ -155,7 +156,7 @@ router.get(
       const { page, limit, skip, sort } = parsePagination(req.query);
       const filter = {};
       if (req.query.search) {
-        filter.name = new RegExp(req.query.search.trim(), "i");
+        filter.name = new RegExp(escapeRegex(req.query.search.trim()), "i");
       }
 
       const allMatching = await Discount.find(filter).sort(sort);

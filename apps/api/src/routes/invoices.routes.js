@@ -12,6 +12,7 @@ const { sendInvoice } = require("../services/mailer");
 const env = require("../config/env");
 const { authenticate, requireRole } = require("../middleware/auth");
 const { Errors } = require("../utils/errors");
+const { escapeRegex } = require("../utils/validators");
 const { todayIST, daysBetween, isValidDateString } = require("../utils/date");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 
@@ -174,8 +175,22 @@ router.get(
       const today = todayIST();
       const baseFilter = {};
 
-      if (req.query.customerId) baseFilter.customerId = req.query.customerId;
-      if (req.query.subscriptionId) baseFilter.subscriptionId = req.query.subscriptionId;
+      if (req.query.customerId) {
+        if (!mongoose.isValidObjectId(req.query.customerId)) {
+          throw Errors.validation("Some fields are invalid", [
+            { field: "customerId", message: "Invalid customerId" },
+          ]);
+        }
+        baseFilter.customerId = new mongoose.Types.ObjectId(String(req.query.customerId));
+      }
+      if (req.query.subscriptionId) {
+        if (!mongoose.isValidObjectId(req.query.subscriptionId)) {
+          throw Errors.validation("Some fields are invalid", [
+            { field: "subscriptionId", message: "Invalid subscriptionId" },
+          ]);
+        }
+        baseFilter.subscriptionId = new mongoose.Types.ObjectId(String(req.query.subscriptionId));
+      }
 
       if (req.query.invoiceFrom || req.query.invoiceTo) {
         baseFilter.invoiceDate = {};
@@ -190,7 +205,7 @@ router.get(
       }
 
       if (req.query.search) {
-        const rx = new RegExp(req.query.search.trim(), "i");
+        const rx = new RegExp(escapeRegex(req.query.search.trim()), "i");
         const matchingCustomers = await Customer.find({ name: rx }, { _id: 1 }).lean();
         baseFilter.$or = [
           { number: rx },

@@ -13,12 +13,14 @@ const { billSinglePeriod } = require("../services/billing");
 const { sendQuotation } = require("../services/mailer");
 const { authenticate, requireRole } = require("../middleware/auth");
 const { Errors } = require("../utils/errors");
+const { escapeRegex } = require("../utils/validators");
 const {
   todayIST,
   isValidDateString,
   defaultExpiryDate,
   addDaysStr,
   computePeriodEnd,
+  nextTermExpiry,
 } = require("../utils/date");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 
@@ -71,11 +73,16 @@ function computeAllowedActions(sub, plan, userRole, today = todayIST()) {
 
 /**
  * Resolves and validates raw lines input against plan and products, setting default unitPrice
- * when unitPrice is omitted (Page 30 & 45).
+ * when unitPrice is omitted or keeping existing line unitPrice when id matches (Page 30 & 45).
  */
-async function buildAndValidateLines(plan, rawLines, allowUnitPriceOverride = true) {
+async function buildAndValidateLines(
+  plan,
+  rawLines,
+  allowUnitPriceOverride = true,
+  existingLines = []
+) {
   let linesInput = rawLines;
-  if (!linesInput || linesInput.length === 0) {
+  if (!linesInput || (Array.isArray(linesInput) && linesInput.length === 0)) {
     linesInput = [
       {
         productId: String(plan.productId),
@@ -85,80 +92,161 @@ async function buildAndValidateLines(plan, rawLines, allowUnitPriceOverride = tr
     ];
   }
 
-  const productIds = linesInput.map((l) => l.productId);
-  const products = await Product.find({
-    _id: { $in: productIds },
-    isActive: true,
-  });
+  if (!Array.isArray(linesInput)) {
+    throw Errors.validation("Some fields are invalid", [
+      { field: "lines", message: "Must be a list of lines" },
+    ]);
+  }
+
+  const existingMap = new Map(
+    (existingLines || []).map((l) => [String(l._id || l.id), l])
+  );
+
+  const candidateProductIds = [];
+  for (const item of linesInput) {
+    if (item && typeof item === "object") {
+      const prev =
+        item.id || item._id ? existingMap.get(String(item.id || item._id)) : null;
+      const pid = item.productId ?? (prev ? String(prev.productId) : null);
+      if (pid && mongoose.isValidObjectId(pid)) {
+        candidateProductIds.push(pid);
+      }
+    }
+  }
+
+  const products = await Product.find({ _id: { $in: candidateProductIds } });
   const prodMap = new Map(products.map((p) => [String(p._id), p]));
 
-  let planProductQty = 0;
+  const details = [];
   const builtLines = [];
+  let planProductQty = 0;
 
-  for (const item of linesInput) {
-    const prod = prodMap.get(String(item.productId));
+  for (let i = 0; i < linesInput.length; i++) {
+    const item = linesInput[i];
+    const f = `lines[${i}]`;
+
+    if (!item || typeof item !== "object") {
+      details.push({ field: f, message: "Must be an object" });
+      continue;
+    }
+
+    const rawLineId = item.id || item._id ? String(item.id || item._id) : null;
+    const prev = rawLineId ? existingMap.get(rawLineId) : null;
+    if (rawLineId && !prev) {
+      details.push({
+        field: `${f}.id`,
+        message: "Line not found on this subscription",
+      });
+      continue;
+    }
+
+    const productId = item.productId ?? (prev ? String(prev.productId) : null);
+    const prod = productId ? prodMap.get(String(productId)) : null;
     if (!prod) {
-      throw Errors.validation("Some fields are invalid", [
-        { field: "lines", message: `Product ${item.productId} not found or inactive` },
-      ]);
+      details.push({ field: `${f}.productId`, message: "Product not found" });
+      continue;
     }
 
-    if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-      throw Errors.validation("Some fields are invalid", [
-        { field: "lines", message: "Line quantity must be an integer >= 1" },
-      ]);
+    const changedItem = !prev || String(prev.productId) !== String(prod._id);
+    if (changedItem && !prod.isActive) {
+      details.push({ field: `${f}.productId`, message: "Product is archived" });
+      continue;
     }
 
+    const rawVariantId =
+      item.variantId !== undefined
+        ? item.variantId
+        : changedItem
+        ? null
+        : prev.variantId;
     let variantId = null;
     let variantLabel = null;
     let extraPrice = 0;
 
-    if (item.variantId) {
-      const v = prod.variants.id(item.variantId);
+    if (rawVariantId !== null && rawVariantId !== undefined) {
+      const v = mongoose.isValidObjectId(rawVariantId)
+        ? prod.variants.id(rawVariantId)
+        : null;
       if (!v) {
-        throw Errors.validation("Some fields are invalid", [
-          { field: "lines", message: `Variant ${item.variantId} not found on product ${prod.name}` },
-        ]);
+        details.push({
+          field: `${f}.variantId`,
+          message: `Variant not found on product ${prod.name}`,
+        });
+        continue;
       }
       variantId = v._id;
       variantLabel = `${v.attribute}: ${v.value}`;
       extraPrice = v.extraPrice || 0;
     }
 
-    const isPlanProduct = String(prod._id) === String(plan.productId);
-    if (isPlanProduct) {
-      planProductQty += item.quantity;
+    const quantity = item.quantity !== undefined ? item.quantity : prev?.quantity;
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      details.push({
+        field: `${f}.quantity`,
+        message: "Line quantity must be an integer >= 1",
+      });
+      continue;
     }
 
+    const isPlanProduct = String(prod._id) === String(plan.productId);
+    if (isPlanProduct) {
+      planProductQty += quantity;
+    }
+
+    const sameItem =
+      prev &&
+      !changedItem &&
+      String(prev.variantId || "") === String(variantId || "");
     const defaultUnitPrice =
       (isPlanProduct ? plan.price : prod.salesPrice) + extraPrice;
 
-    let unitPrice = defaultUnitPrice;
-    if (
-      allowUnitPriceOverride &&
-      item.unitPrice !== undefined &&
-      item.unitPrice !== null
-    ) {
+    let unitPrice;
+    if (item.unitPrice !== undefined && item.unitPrice !== null) {
       if (!Number.isInteger(item.unitPrice) || item.unitPrice < 0) {
-        throw Errors.validation("Some fields are invalid", [
-          { field: "lines", message: "unitPrice must be an integer in paise >= 0" },
-        ]);
+        details.push({
+          field: `${f}.unitPrice`,
+          message: "unitPrice must be an integer in paise >= 0",
+        });
+        continue;
       }
-      unitPrice = item.unitPrice;
+      if (allowUnitPriceOverride) {
+        unitPrice = item.unitPrice;
+      } else if (sameItem && item.unitPrice === prev.unitPrice) {
+        unitPrice = prev.unitPrice;
+      } else {
+        throw Errors.notEditable(
+          "Unit prices can only be changed while the subscription is a Draft or Quotation"
+        );
+      }
+    } else {
+      unitPrice = sameItem ? prev.unitPrice : defaultUnitPrice;
     }
 
     const lineDoc = {
       productId: prod._id,
-      productName: prod.name,
+      productName: sameItem ? prev.productName : prod.name,
       variantId,
-      variantLabel,
-      quantity: item.quantity,
+      variantLabel: sameItem ? prev.variantLabel : variantLabel,
+      quantity,
       unitPrice,
     };
-    if (item.id || item._id) {
-      lineDoc._id = new mongoose.Types.ObjectId(String(item.id || item._id));
+    if (prev && prev._id) {
+      lineDoc._id = prev._id;
     }
     builtLines.push(lineDoc);
+  }
+
+  if (details.length > 0) {
+    throw Errors.validation("Some fields are invalid", details);
+  }
+
+  if (planProductQty === 0) {
+    throw Errors.validation("Some fields are invalid", [
+      {
+        field: "lines",
+        message: "Must include the plan's product",
+      },
+    ]);
   }
 
   if (planProductQty < plan.minQuantity) {
@@ -268,6 +356,8 @@ async function formatSubscriptionDetail(sub, userRole = "admin") {
     lines: priced.lines,
     orderDiscount: priced.orderDiscount,
     totals: priced.totals,
+    recurringTotal: priced.recurringTotal,
+    recurringNet: priced.recurringNet,
     allowedActions: computeAllowedActions(sub, plan, userRole, today),
     invoiceSummary: {
       count: invoices.length,
@@ -281,6 +371,8 @@ async function formatSubscriptionDetail(sub, userRole = "admin") {
         : null,
     },
     history: historyFormatted,
+    pausedAt: sub.pausedAt ? sub.pausedAt.toISOString() : null,
+    closedAt: sub.closedAt ? sub.closedAt.toISOString() : null,
     closeReason: sub.closeReason || null,
     notes: sub.notes || "",
     createdAt: sub.createdAt.toISOString(),
@@ -296,10 +388,25 @@ router.get(
   async (req, res, next) => {
     try {
       const { page, limit, skip, sort } = parsePagination(req.query);
+      const today = todayIST();
       const baseFilter = {};
 
-      if (req.query.customerId) baseFilter.customerId = req.query.customerId;
-      if (req.query.planId) baseFilter.planId = req.query.planId;
+      if (req.query.customerId) {
+        if (!mongoose.isValidObjectId(req.query.customerId)) {
+          throw Errors.validation("Some fields are invalid", [
+            { field: "customerId", message: "Invalid customerId" },
+          ]);
+        }
+        baseFilter.customerId = new mongoose.Types.ObjectId(String(req.query.customerId));
+      }
+      if (req.query.planId) {
+        if (!mongoose.isValidObjectId(req.query.planId)) {
+          throw Errors.validation("Some fields are invalid", [
+            { field: "planId", message: "Invalid planId" },
+          ]);
+        }
+        baseFilter.planId = new mongoose.Types.ObjectId(String(req.query.planId));
+      }
       if (req.query.startFrom || req.query.startTo) {
         baseFilter.startDate = {};
         if (req.query.startFrom) baseFilter.startDate.$gte = req.query.startFrom;
@@ -310,7 +417,7 @@ router.get(
       }
 
       if (req.query.search) {
-        const rx = new RegExp(req.query.search.trim(), "i");
+        const rx = new RegExp(escapeRegex(req.query.search.trim()), "i");
         const matchingCustomers = await Customer.find({ name: rx }, { _id: 1 }).lean();
         const custIds = matchingCustomers.map((c) => c._id);
         baseFilter.$or = [{ number: rx }, { customerId: { $in: custIds } }];
@@ -356,6 +463,8 @@ router.get(
       const data = subs.map((s) => {
         const c = custMap.get(String(s.customerId));
         const p = planMap.get(String(s.planId));
+        const isExpired =
+          ["active", "paused"].includes(s.status) && s.expiryDate < today;
         return {
           id: String(s._id),
           number: s.number,
@@ -366,8 +475,14 @@ router.get(
           status: s.status,
           startDate: s.startDate,
           expiryDate: s.expiryDate,
+          isExpired,
+          quotationValidUntil: s.quotationValidUntil || null,
           nextInvoiceDate: s.nextInvoiceDate || null,
           recurringTotal: s.recurringTotal || 0,
+          recurringNet: s.recurringNet || 0,
+          closeReason: s.closeReason || null,
+          createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : null,
+          updatedAt: s.updatedAt ? new Date(s.updatedAt).toISOString() : null,
         };
       });
 
@@ -615,24 +730,11 @@ router.patch(
       }
 
       if (lines !== undefined) {
-        // When active/paused, preserve existing line unitPrice unless draft/quotation
-        const existingLineMap = new Map(
-          sub.lines.map((l) => [String(l._id), l])
-        );
-        const normalizedLines = lines.map((l) => {
-          if (!isDraftOrQuote && (l.id || l._id)) {
-            const old = existingLineMap.get(String(l.id || l._id));
-            if (old) {
-              return { ...l, unitPrice: old.unitPrice };
-            }
-          }
-          return l;
-        });
-
         sub.lines = await buildAndValidateLines(
           plan,
-          normalizedLines,
-          isDraftOrQuote
+          lines,
+          isDraftOrQuote,
+          sub.lines
         );
       }
 
@@ -928,9 +1030,8 @@ router.post(
           ]);
         }
       } else {
-        // Extend by one more term of the same length (default 1 year from day after current expiryDate)
-        const dayAfterExpiry = addDaysStr(sub.expiryDate, 1);
-        newExpiryDate = defaultExpiryDate(dayAfterExpiry);
+        // Extend by one more term of the same length as startDate -> expiryDate
+        newExpiryDate = nextTermExpiry(sub.startDate, sub.expiryDate);
       }
 
       const oldExpiry = sub.expiryDate;

@@ -39,8 +39,16 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 
 // ==========================================
-// Health Check Endpoint (Page 18)
+// Root & Health Check Endpoints (Page 18)
 // ==========================================
+app.get("/", (req, res) => {
+  return res.status(200).json({
+    status: "ok",
+    service: "Subscribby API v1",
+    health: "/api/v1/health",
+  });
+});
+
 app.get("/api/v1/health", async (req, res) => {
   const isConnected = mongoose.connection.readyState === 1;
   const status = isConnected ? "ok" : "error";

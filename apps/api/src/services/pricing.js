@@ -37,7 +37,9 @@ async function priceLines(subscription, onDate = todayIST(), excludedDiscountIds
       isActive: true,
       startDate: { $lte: onDate },
       endDate: { $gte: onDate },
-    }).lean(),
+    })
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
   ]);
 
   const prodMap = new Map(products.map((p) => [String(p._id), p]));
@@ -52,18 +54,11 @@ async function priceLines(subscription, onDate = todayIST(), excludedDiscountIds
     return true;
   });
 
-  const productDiscounts = runningDiscounts.filter(
-    (d) => d.appliesTo && d.appliesTo.kind === "products"
-  );
-  const subDiscounts = runningDiscounts.filter(
-    (d) => d.appliesTo && d.appliesTo.kind === "subscription"
-  );
-
   // Step 1: Compute line subtotals and total quantity
   const workingLines = rawLines.map((l) => {
     const subtotal = l.unitPrice * l.quantity;
     return {
-      id: l._id ? String(l._id) : l.id ? String(l.id) : undefined,
+      id: l._id ? String(l._id) : l.id ? String(l.id) : null,
       productId: String(l.productId),
       productName: l.productName,
       variantId: l.variantId ? String(l.variantId) : null,
@@ -86,117 +81,101 @@ async function priceLines(subscription, onDate = todayIST(), excludedDiscountIds
   const untaxedAmount = workingLines.reduce((sum, l) => sum + l.subtotal, 0);
   const totalQuantity = workingLines.reduce((sum, l) => sum + l.quantity, 0);
 
-  // Step 2: Line discounts (appliesTo.kind = "products")
-  for (const line of workingLines) {
-    let bestDiscount = null;
-    let bestAmount = 0;
+  // Step 2 & 3: ONE discount per invoice (Page 45: "discounts never stack").
+  // Evaluate every running discount across qualifying lines or subscription subtotal,
+  // and apply only the single discount that saves the most in total.
+  // Ties: product discount beats subscription discount; then older discount wins.
+  const calcDiscountAmt = (d, base) => {
+    if (base <= 0) return 0;
+    return d.type === "percentage"
+      ? Math.round((base * d.value) / 100)
+      : Math.min(d.value, base);
+  };
 
-    for (const d of productDiscounts) {
-      const targetIds = (d.appliesTo.productIds || []).map(String);
-      if (!targetIds.includes(line.productId)) continue;
-      if (d.minQuantity !== null && d.minQuantity !== undefined && line.quantity < d.minQuantity) {
-        continue;
-      }
-      if (
-        d.minPurchaseAmount !== null &&
-        d.minPurchaseAmount !== undefined &&
-        untaxedAmount < d.minPurchaseAmount
-      ) {
-        continue;
-      }
-
-      const amt =
-        d.type === "percentage"
-          ? Math.round((line.subtotal * d.value) / 100)
-          : Math.min(d.value, line.subtotal);
-
-      if (amt > bestAmount) {
-        bestAmount = amt;
-        bestDiscount = d;
-      }
+  let winner = null; // { discount, kind, savings }
+  const consider = (discount, kind, savings) => {
+    if (savings <= 0) return;
+    const better =
+      !winner ||
+      savings > winner.savings ||
+      (savings === winner.savings && kind === "products" && winner.kind === "subscription");
+    if (better) {
+      winner = { discount, kind, savings };
     }
+  };
 
-    if (bestDiscount && bestAmount > 0) {
-      line.discount = {
-        discountId: String(bestDiscount._id),
-        name: bestDiscount.name,
-        amount: bestAmount,
-      };
-      line.lineDiscountAmount = bestAmount;
-    }
-  }
-
-  // Step 3: Subscription discount (appliesTo.kind = "subscription")
-  // Rule (Page 45): "discounts never stack."
-  // Compare total line discounts vs best subscription discount and keep whichever is larger.
-  const totalLineDiscountsSoFar = workingLines.reduce(
-    (sum, l) => sum + l.lineDiscountAmount,
-    0
-  );
-  const netAfterLineDiscounts = untaxedAmount;
-
-  let orderDiscount = null;
-  let bestSubDiscount = null;
-  let bestSubAmount = 0;
-
-  for (const d of subDiscounts) {
-    if (d.minQuantity !== null && d.minQuantity !== undefined && totalQuantity < d.minQuantity) {
-      continue;
-    }
+  for (const d of runningDiscounts) {
     if (
       d.minPurchaseAmount !== null &&
       d.minPurchaseAmount !== undefined &&
-      netAfterLineDiscounts < d.minPurchaseAmount
+      untaxedAmount < d.minPurchaseAmount
     ) {
       continue;
     }
 
-    const amt =
-      d.type === "percentage"
-        ? Math.round((netAfterLineDiscounts * d.value) / 100)
-        : Math.min(d.value, netAfterLineDiscounts);
-
-    if (amt > bestSubAmount) {
-      bestSubAmount = amt;
-      bestSubDiscount = d;
+    const kind = d.appliesTo && d.appliesTo.kind;
+    if (kind === "products") {
+      const targetIds = (d.appliesTo.productIds || []).map(String);
+      const savings = workingLines
+        .filter(
+          (l) =>
+            targetIds.includes(l.productId) &&
+            (d.minQuantity === null || d.minQuantity === undefined || l.quantity >= d.minQuantity)
+        )
+        .reduce((sum, l) => sum + calcDiscountAmt(d, l.subtotal), 0);
+      consider(d, "products", savings);
+    } else if (kind === "subscription") {
+      if (
+        d.minQuantity !== null &&
+        d.minQuantity !== undefined &&
+        totalQuantity < d.minQuantity
+      ) {
+        continue;
+      }
+      consider(d, "subscription", calcDiscountAmt(d, untaxedAmount));
     }
   }
 
-  // Discounts never stack: only apply subscription discount if it beats total line discounts
-  if (
-    bestSubDiscount &&
-    bestSubAmount > totalLineDiscountsSoFar &&
-    netAfterLineDiscounts > 0
-  ) {
-    // Clear any smaller line discounts so discounts do not stack
+  let orderDiscount = null;
+  if (winner && winner.kind === "products") {
+    const d = winner.discount;
+    const targetIds = (d.appliesTo.productIds || []).map(String);
     for (const l of workingLines) {
-      l.discount = null;
-      l.lineDiscountAmount = 0;
+      if (
+        targetIds.includes(l.productId) &&
+        (d.minQuantity === null || d.minQuantity === undefined || l.quantity >= d.minQuantity)
+      ) {
+        const amount = calcDiscountAmt(d, l.subtotal);
+        if (amount > 0) {
+          l.discount = {
+            discountId: String(d._id),
+            name: d.name,
+            amount,
+          };
+          l.lineDiscountAmount = amount;
+        }
+      }
     }
-
+  } else if (winner && winner.kind === "subscription" && untaxedAmount > 0) {
+    const d = winner.discount;
     orderDiscount = {
-      discountId: String(bestSubDiscount._id),
-      name: bestSubDiscount.name,
-      amount: bestSubAmount,
+      discountId: String(d._id),
+      name: d.name,
+      amount: winner.savings,
     };
 
-    // Split across lines in proportion to their net amounts; rounding remainder goes to largest line
+    // Split across lines in proportion to their subtotals; rounding remainder goes to largest line
     let allocated = 0;
     let largestIdx = 0;
-    let largestNet = -1;
-
     workingLines.forEach((l, idx) => {
-      const net = l.subtotal;
-      if (net > largestNet) {
-        largestNet = net;
-        largestIdx = idx;
-      }
-      const share = Math.round((bestSubAmount * net) / netAfterLineDiscounts);
+      const share = Math.round((orderDiscount.amount * l.subtotal) / untaxedAmount);
       l.orderDiscountShare = share;
       allocated += share;
+      if (l.subtotal > workingLines[largestIdx].subtotal) {
+        largestIdx = idx;
+      }
     });
-
-    const remainder = bestSubAmount - allocated;
+    const remainder = orderDiscount.amount - allocated;
     if (remainder !== 0 && workingLines[largestIdx]) {
       workingLines[largestIdx].orderDiscountShare += remainder;
     }
