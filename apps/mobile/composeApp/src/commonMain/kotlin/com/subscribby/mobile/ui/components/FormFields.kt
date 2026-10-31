@@ -1,5 +1,7 @@
 package com.subscribby.mobile.ui.components
 
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -149,12 +151,29 @@ fun FormTextField(
     onImeAction: (() -> Unit)? = null,
     enabled: Boolean = true,
     autofill: ContentType? = null,
+    /** Remove leading spaces while typing and trailing spaces when the field loses focus. */
+    trim: Boolean = true,
 ) {
     val source = remember { MutableInteractionSource() }
+    val isEmail = keyboardType == KeyboardType.Email
+    // Emails never contain spaces; other text just can't start with one.
+    val clean: (String) -> String = { text ->
+        when {
+            isEmail -> text.filterNot { it.isWhitespace() }
+            trim -> text.trimStart()
+            else -> text
+        }
+    }
+    val focused by source.collectIsFocusedAsState()
+    val latestValue by rememberUpdatedState(value)
+    val latestOnChange by rememberUpdatedState(onValueChange)
+    LaunchedEffect(focused) {
+        if (!focused && (trim || isEmail) && latestValue != latestValue.trim()) latestOnChange(latestValue.trim())
+    }
     Column(Modifier.fillMaxWidth()) {
         TextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { onValueChange(clean(it)) },
             singleLine = true,
             isError = error != null,
             enabled = enabled,

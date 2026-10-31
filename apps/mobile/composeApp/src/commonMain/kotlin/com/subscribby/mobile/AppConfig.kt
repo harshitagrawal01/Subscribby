@@ -15,7 +15,8 @@ import com.subscribby.mobile.platform.platformDefaultApiBaseUrl
  *   `SUBSCRIBBY_API_URL=http://host:4000/api/v1 ./gradlew :composeApp:run`.
  */
 object AppConfig {
-    val API_BASE_URL_OVERRIDE: String? = null
+    /** Live backend on Elastic Beanstalk. Set to null to use the local API on port 4000. */
+    val API_BASE_URL_OVERRIDE: String? = "http://subscribby-api-env.eba-xyim8qvr.ap-south-1.elasticbeanstalk.com/api/v1"
 
     val apiBaseUrl: String
         get() = (API_BASE_URL_OVERRIDE ?: platformApiBaseUrlOverride() ?: platformDefaultApiBaseUrl).trimEnd('/')
