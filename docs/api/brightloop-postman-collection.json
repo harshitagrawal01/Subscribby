@@ -1,0 +1,96 @@
+{
+  "info": {
+    "name": "Brightloop API v1 Collection",
+    "description": "Complete API collection matching Brightloop-API-Spec.pdf",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000/api/v1" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Health & Meta",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+        },
+        {
+          "name": "GET /meta",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/meta"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Auth",
+      "item": [
+        {
+          "name": "POST /auth/staff/login (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/staff/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@brightloop.test\",\n  \"password\": \"Admin@2026!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/customer/login (Acme)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/customer/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"billing@acme.test\",\n  \"password\": \"Customer@2026!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /auth/customer/signup",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/customer/signup",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New User\",\n  \"companyName\": \"New Co\",\n  \"email\": \"new@co.test\",\n  \"password\": \"Welcome@2026!\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Billing & Reports",
+      "item": [
+        {
+          "name": "POST /billing/run (Preview dryRun)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/billing/run",
+            "body": { "mode": "raw", "raw": "{\n  \"dryRun\": true\n}" }
+          }
+        },
+        {
+          "name": "GET /reports/summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/reports/summary"
+          }
+        }
+      ]
+    }
+  ]
+}

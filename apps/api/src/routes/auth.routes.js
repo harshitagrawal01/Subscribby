@@ -18,6 +18,7 @@ const authLimiter = rateLimit({
   max: env.NODE_ENV === "development" ? 200 : 10,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   handler: (req, res, next) => next(Errors.rateLimited()),
 });
 
