@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables & secrets (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+**/apps/api/.env
+
+# Build & logs
+dist/
+build/
+*.log
+*.zip
+.DS_Store
+.elasticbeanstalk/
