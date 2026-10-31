@@ -1,0 +1,7 @@
+node_modules
+dist
+mock-api
+docs
+scripts
+.env*
+!.env.example
