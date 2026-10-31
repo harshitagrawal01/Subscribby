@@ -1,0 +1,6 @@
+name,email,temporary_password,access_level
+Riya Sharma,riya.import@brightloop.test,Welcome@2026!,Internal Staff
+Duplicate Riya,RIYA.IMPORT@brightloop.test,Welcome@2026!,Internal Staff
+Bad Email User,arjun@brightloop,Welcome@2026!,Admin
+Bad Role User,wrongrole@brightloop.test,Welcome@2026!,customer
+Weak Pass User,weakpass@brightloop.test,short1!,Internal Staff
