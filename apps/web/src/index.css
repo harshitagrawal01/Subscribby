@@ -1,0 +1,9 @@
+body {
+  margin: 0;
+}
+
+/* Tabular numbers keep money columns aligned. */
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
