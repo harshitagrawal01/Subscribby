@@ -15,6 +15,11 @@ module.exports = {
     .map((s) => s.trim())
     .filter(Boolean),
   WEB_URL: (process.env.WEB_URL || "http://localhost:5173").replace(/\/$/, ""),
+  STAFF_PORTAL_PATH:
+    "/" +
+    (process.env.STAFF_PORTAL_PATH || "/staff")
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, ""),
   EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || "console",
   BREVO_API_KEY: process.env.BREVO_API_KEY || "",
   BREVO_SENDER_EMAIL:

@@ -328,7 +328,7 @@ router.post("/forgot-password", authLimiter, async (req, res, next) => {
 
     const resetPath =
       portal === "staff"
-        ? `/staff/reset-password?token=${rawToken}`
+        ? `${env.STAFF_PORTAL_PATH}/reset-password?token=${rawToken}`
         : `/reset-password?token=${rawToken}`;
     const resetUrl = `${env.WEB_URL}${resetPath}`;
 
