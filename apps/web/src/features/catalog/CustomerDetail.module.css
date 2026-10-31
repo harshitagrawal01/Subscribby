@@ -1,0 +1,33 @@
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (max-width: 62em) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 10px;
+}
+
+.address {
+  white-space: pre-line;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}

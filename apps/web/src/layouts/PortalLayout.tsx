@@ -10,9 +10,9 @@ const LINKS = [
 
 export function PortalLayout() {
   return (
-    <AppShell header={{ height: 60 }} padding={0}>
+    <AppShell header={{ height: { base: 104, xs: 60 } }} padding={0}>
       <AppShell.Header bg="#fff">
-        <Container size={1040} h="100%">
+        <Container size={1040} h={60}>
           <Group h="100%" justify="space-between" wrap="nowrap">
             <Group gap={36} h="100%" wrap="nowrap">
               <Logo size="sm" />
@@ -25,6 +25,16 @@ export function PortalLayout() {
               </Group>
             </Group>
             <UserMenu profilePath="/portal/profile" />
+          </Group>
+        </Container>
+        {/* Phones: the links get their own row under the logo. */}
+        <Container size={1040} h={44} hiddenFrom="xs" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+          <Group h="100%" gap={24} component="nav">
+            {LINKS.map((link) => (
+              <RouterNavLink key={link.to} to={link.to} className="top-link">
+                {link.label}
+              </RouterNavLink>
+            ))}
           </Group>
         </Container>
       </AppShell.Header>

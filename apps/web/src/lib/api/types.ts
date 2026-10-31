@@ -70,7 +70,7 @@ export interface AuthUser {
   mustChangePassword: boolean
   customerId?: Id | null
   lastLoginAt?: Timestamp | null
-  customer?: { id: Id; name: string; phone?: string; billingAddress?: Address }
+  customer?: { id: Id; name: string; contactName?: string; email?: string; phone?: string; taxId?: string; billingAddress?: Address }
 }
 
 export interface Session {
@@ -336,6 +336,8 @@ export interface Subscription extends SubscriptionListItem {
   history?: HistoryEntry[]
   notes?: string
   closeReason?: string | null
+  pausedAt?: Timestamp | null
+  closedAt?: Timestamp | null
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -355,7 +357,7 @@ export interface SubscriptionInput {
   startDate: DateString
   expiryDate?: DateString
   paymentTermDays?: number
-  salespersonId?: Id
+  salespersonId?: Id | null
   notes?: string
   lines?: SubscriptionLineInput[]
 }
@@ -384,7 +386,7 @@ export interface InvoiceListItem {
 
 export interface Invoice extends InvoiceListItem, Totals {
   customerSnapshot: { name: string; email: string; billingAddress?: Address; taxId?: string }
-  company: { name: string; address: string; taxId: string }
+  company: { name: string; address: string; taxId: string; email?: string }
   periodStart: DateString
   periodEnd: DateString
   lines: PricedLine[]
@@ -413,6 +415,7 @@ export interface BillingRunResult {
   invoiceIds: Id[]
   startedAt: Timestamp
   finishedAt: Timestamp
+  runBy?: { id: string; name: string } | string
 }
 
 // ---------- Payments ----------

@@ -1,0 +1,106 @@
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 220px;
+  padding: 28px 24px;
+  border: 1.5px dashed var(--mantine-color-gray-3);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-body);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+.drop:hover {
+  border-color: var(--mantine-color-ink-4);
+}
+.drop[data-active] {
+  border-color: var(--mantine-color-ink-6);
+  background: var(--mantine-color-ink-0);
+}
+.drop[data-busy] {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.steps {
+  display: flex;
+  gap: 28px;
+  margin: -8px 0 20px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-dimmed);
+}
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.steps li[data-current] {
+  color: var(--mantine-color-text);
+  font-weight: 500;
+}
+.steps .n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 20px;
+  border: 1px solid var(--mantine-color-gray-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.steps li[data-current] .n {
+  background: var(--mantine-color-ink-8);
+  border-color: var(--mantine-color-ink-8);
+  color: #fff;
+}
+.steps li[data-done] .n {
+  border-color: var(--mantine-color-ink-6);
+  color: var(--mantine-color-ink-6);
+}
+
+.columns {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--mantine-font-size-sm);
+}
+.columns td {
+  padding: 7px 0;
+  border-top: 1px solid var(--mantine-color-gray-1);
+  vertical-align: top;
+}
+.columns td:first-child {
+  width: 150px;
+  padding-right: 12px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+  padding: 24px;
+}
+@media (max-width: 62em) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.invalidRow td {
+  background: #fdf6f5;
+}
+.cellError {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--mantine-font-size-xs);
+  color: #b42318;
+  line-height: 1.35;
+  white-space: normal;
+}

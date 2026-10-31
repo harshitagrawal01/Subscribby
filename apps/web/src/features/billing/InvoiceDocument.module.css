@@ -1,0 +1,239 @@
+/* Invoice page: the sheet with a narrow column of facts and payments beside it. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 62em) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The invoice as a sheet of paper. On screen it sits in the page; in print it is the only thing on the page. */
+.sheet {
+  background: #fff;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md);
+  padding: 44px 48px 40px;
+  position: relative;
+  color: var(--mantine-color-text);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.company {
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1,
+    'opsz' 48;
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 0 0 6px;
+}
+
+.docTitle {
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1,
+    'opsz' 48;
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1;
+  margin: 0 0 10px;
+  text-align: right;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 32px;
+  padding: 24px 0 28px;
+}
+
+.label {
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  margin-bottom: 4px;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 20px;
+  font-size: var(--mantine-font-size-sm);
+  align-content: start;
+}
+.facts dt {
+  color: var(--mantine-color-dimmed);
+}
+.facts dd {
+  margin: 0;
+  text-align: right;
+}
+
+.lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--mantine-font-size-sm);
+}
+.lines th {
+  font-weight: 500;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  text-align: left;
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--mantine-color-text);
+  white-space: nowrap;
+}
+.lines td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  vertical-align: top;
+}
+.lines th:first-child,
+.lines td:first-child {
+  padding-left: 0;
+}
+.lines th:last-child,
+.lines td:last-child {
+  padding-right: 0;
+}
+.right {
+  text-align: right !important;
+}
+
+.totalsWrap {
+  position: relative;
+}
+.totals {
+  margin-left: auto;
+  width: min(100%, 340px);
+  margin-top: 18px;
+  font-size: var(--mantine-font-size-sm);
+}
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 0;
+}
+.grand {
+  border-top: 1px solid var(--mantine-color-text);
+  margin-top: 6px;
+  padding-top: 10px;
+  font-weight: 600;
+}
+.balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--mantine-color-ink-0);
+  border-radius: var(--mantine-radius-sm);
+}
+.balanceAmount {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.footer {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 1px solid var(--mantine-color-default-border);
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+/* A rubber stamp for paid or cancelled invoices: handmade warmth, not a pill. */
+.stamp {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  transform: rotate(-8deg);
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-family: 'Fraunces Variable', Georgia, serif;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1,
+    'opsz' 48;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+@media (max-width: 48em) {
+  .sheet {
+    padding: 24px 20px;
+  }
+  .top,
+  .meta {
+    display: block;
+  }
+  .docTitle {
+    text-align: left;
+    margin-top: 20px;
+  }
+  .stamp {
+    display: none;
+  }
+}
+
+/*
+ * Print: hide everything (sidebar, header, actions, toasts) and show only the sheet.
+ * The layout isn't ours to edit, so visibility does the hiding and the sheet is pulled to the page's top left.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  :global(body) {
+    background: #fff !important;
+  }
+  :global(body *) {
+    visibility: hidden;
+  }
+  .sheet,
+  .sheet * {
+    visibility: visible;
+  }
+  .sheet {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .noPrint {
+    display: none !important;
+  }
+  .sheet a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

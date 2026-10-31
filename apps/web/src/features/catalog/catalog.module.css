@@ -1,0 +1,116 @@
+.filterBar {
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.pager {
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+/* Drawer: header and footer stay put, the form scrolls between them. */
+.drawerContent {
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.drawerHeader {
+  background: #fff;
+  align-items: flex-start;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+.drawerBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+.drawerMain {
+  flex: 1;
+  padding: 20px 24px 28px;
+}
+.drawerFooter {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 24px;
+  background: #fff;
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.formSection + .formSection {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--mantine-color-gray-1);
+}
+
+.detailList {
+  margin: 0;
+}
+.detailRow {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--mantine-color-gray-1);
+  font-size: var(--mantine-font-size-sm);
+}
+.detailRow:last-child {
+  border-bottom: 0;
+}
+.detailRow dt {
+  color: var(--mantine-color-dimmed);
+}
+.detailRow dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.usageTrack {
+  flex: none;
+  height: 3px;
+  width: 56px;
+  border-radius: 2px;
+  background: var(--mantine-color-gray-2);
+  overflow: hidden;
+}
+.usageFill {
+  height: 100%;
+}
+
+/* Archived rows read quieter. */
+.archivedRow td {
+  color: var(--mantine-color-dimmed);
+}
+
+/* Variant editor rows. */
+.variantRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px 32px;
+  gap: 8px;
+  align-items: start;
+}
+.variantHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px 32px;
+  gap: 8px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+}
+
+/* Modals and drawers are white sheets over the paper page. */
+.whiteSurface {
+  background: #fff;
+}
+
+/* Drawer and modal titles: the Mantine title element is already an h2 (Fraunces via index.css). */
+.sheetTitle {
+  display: block;
+  font-family: var(--mantine-font-family-headings);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.3;
+}

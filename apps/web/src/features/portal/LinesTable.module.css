@@ -1,0 +1,63 @@
+.scroll {
+  overflow-x: auto;
+}
+.lines {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: var(--mantine-font-size-sm);
+}
+.lines th {
+  font-weight: 500;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  white-space: nowrap;
+}
+.lines td {
+  padding: 12px;
+  border-bottom: 1px solid var(--mantine-color-gray-1);
+  vertical-align: top;
+}
+.lines th:first-child,
+.lines td:first-child {
+  padding-left: 0;
+}
+.lines th:last-child,
+.lines td:last-child {
+  padding-right: 0;
+}
+.right {
+  text-align: right !important;
+}
+
+.totals {
+  margin: 16px 0 0 auto;
+  max-width: 340px;
+  font-size: var(--mantine-font-size-sm);
+}
+.totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 5px 0;
+}
+.totals dt {
+  color: var(--mantine-color-dimmed);
+}
+.totals dd {
+  margin: 0;
+  text-align: right;
+}
+.grand {
+  margin-top: 6px;
+  padding-top: 10px !important;
+  border-top: 1px solid var(--mantine-color-default-border);
+  font-weight: 600;
+  font-size: var(--mantine-font-size-md);
+}
+.grand dt {
+  color: var(--mantine-color-text) !important;
+}

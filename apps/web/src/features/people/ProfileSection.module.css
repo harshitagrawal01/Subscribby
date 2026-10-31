@@ -1,0 +1,12 @@
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 32px;
+  padding: 24px;
+}
+@media (max-width: 48em) {
+  .section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}

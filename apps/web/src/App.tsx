@@ -17,7 +17,7 @@ const Devtools =
 export default function App() {
   return (
     <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver} defaultColorScheme="light">
-      <Notifications position="bottom-right" />
+      <Notifications position="top-right" />
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <RouterProvider router={router} />

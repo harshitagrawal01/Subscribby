@@ -1,4 +1,11 @@
 import { createBrowserRouter, Navigate } from 'react-router'
+import type { ComponentType } from 'react'
+
+/** Each screen loads on first visit, so customers never download the staff console. */
+const page = (load: () => Promise<Record<string, unknown>>, name: string) => ({
+  lazy: async () => ({ Component: (await load())[name] as ComponentType }),
+})
+
 import { GuestOnly, RequireAuth, RequireRole } from '@/features/auth/guards'
 import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
@@ -9,28 +16,6 @@ import { StaffGate } from '@/features/auth/StaffGate'
 import { PortalLayout } from '@/layouts/PortalLayout'
 import { StaffLayout } from '@/layouts/StaffLayout'
 import { NotFoundPage } from '@/pages/ErrorPages'
-import { PortalInvoiceDetailPage } from '@/pages/portal/PortalInvoiceDetailPage'
-import { PortalInvoicesPage } from '@/pages/portal/PortalInvoicesPage'
-import { PortalProfilePage } from '@/pages/portal/PortalProfilePage'
-import { PortalSubscriptionDetailPage } from '@/pages/portal/PortalSubscriptionDetailPage'
-import { PortalSubscriptionsPage } from '@/pages/portal/PortalSubscriptionsPage'
-import { CustomerDetailPage } from '@/pages/staff/CustomerDetailPage'
-import { CustomersPage } from '@/pages/staff/CustomersPage'
-import { DashboardPage } from '@/pages/staff/DashboardPage'
-import { DiscountsPage } from '@/pages/staff/DiscountsPage'
-import { InvoiceDetailPage } from '@/pages/staff/InvoiceDetailPage'
-import { InvoicesPage } from '@/pages/staff/InvoicesPage'
-import { PaymentsPage } from '@/pages/staff/PaymentsPage'
-import { PlansPage } from '@/pages/staff/PlansPage'
-import { ProductsPage } from '@/pages/staff/ProductsPage'
-import { StaffProfilePage } from '@/pages/staff/StaffProfilePage'
-import { SubscriptionDetailPage } from '@/pages/staff/SubscriptionDetailPage'
-import { SubscriptionNewPage } from '@/pages/staff/SubscriptionNewPage'
-import { SubscriptionsPage } from '@/pages/staff/SubscriptionsPage'
-import { TaxesPage } from '@/pages/staff/TaxesPage'
-import { TemplatesPage } from '@/pages/staff/TemplatesPage'
-import { UserImportPage } from '@/pages/staff/UserImportPage'
-import { UsersPage } from '@/pages/staff/UsersPage'
 
 /**
  * Two portals on one account system (spec section 5):
@@ -60,11 +45,11 @@ export const router = createBrowserRouter([
         element: <PortalLayout />,
         children: [
           { index: true, element: <Navigate to="subscriptions" replace /> },
-          { path: 'subscriptions', element: <PortalSubscriptionsPage /> },
-          { path: 'subscriptions/:id', element: <PortalSubscriptionDetailPage /> },
-          { path: 'invoices', element: <PortalInvoicesPage /> },
-          { path: 'invoices/:id', element: <PortalInvoiceDetailPage /> },
-          { path: 'profile', element: <PortalProfilePage /> },
+          { path: 'subscriptions', ...page(() => import('@/pages/portal/PortalSubscriptionsPage'), 'PortalSubscriptionsPage') },
+          { path: 'subscriptions/:id', ...page(() => import('@/pages/portal/PortalSubscriptionDetailPage'), 'PortalSubscriptionDetailPage') },
+          { path: 'invoices', ...page(() => import('@/pages/portal/PortalInvoicesPage'), 'PortalInvoicesPage') },
+          { path: 'invoices/:id', ...page(() => import('@/pages/portal/PortalInvoiceDetailPage'), 'PortalInvoiceDetailPage') },
+          { path: 'profile', ...page(() => import('@/pages/portal/PortalProfilePage'), 'PortalProfilePage') },
         ],
       },
     ],
@@ -93,29 +78,29 @@ export const router = createBrowserRouter([
             element: <StaffLayout />,
             children: [
               { index: true, element: <Navigate to="dashboard" replace /> },
-              { path: 'dashboard', element: <DashboardPage /> },
-              { path: 'subscriptions', element: <SubscriptionsPage /> },
-              { path: 'subscriptions/:id', element: <SubscriptionDetailPage /> },
-              { path: 'invoices', element: <InvoicesPage /> },
-              { path: 'invoices/:id', element: <InvoiceDetailPage /> },
-              { path: 'payments', element: <PaymentsPage /> },
-              { path: 'customers', element: <CustomersPage /> },
-              { path: 'customers/:id', element: <CustomerDetailPage /> },
-              { path: 'products', element: <ProductsPage /> },
-              { path: 'plans', element: <PlansPage /> },
-              { path: 'templates', element: <TemplatesPage /> },
-              { path: 'profile', element: <StaffProfilePage /> },
+              { path: 'dashboard', ...page(() => import('@/pages/staff/DashboardPage'), 'DashboardPage') },
+              { path: 'subscriptions', ...page(() => import('@/pages/staff/SubscriptionsPage'), 'SubscriptionsPage') },
+              { path: 'subscriptions/:id', ...page(() => import('@/pages/staff/SubscriptionDetailPage'), 'SubscriptionDetailPage') },
+              { path: 'invoices', ...page(() => import('@/pages/staff/InvoicesPage'), 'InvoicesPage') },
+              { path: 'invoices/:id', ...page(() => import('@/pages/staff/InvoiceDetailPage'), 'InvoiceDetailPage') },
+              { path: 'payments', ...page(() => import('@/pages/staff/PaymentsPage'), 'PaymentsPage') },
+              { path: 'customers', ...page(() => import('@/pages/staff/CustomersPage'), 'CustomersPage') },
+              { path: 'customers/:id', ...page(() => import('@/pages/staff/CustomerDetailPage'), 'CustomerDetailPage') },
+              { path: 'products', ...page(() => import('@/pages/staff/ProductsPage'), 'ProductsPage') },
+              { path: 'plans', ...page(() => import('@/pages/staff/PlansPage'), 'PlansPage') },
+              { path: 'templates', ...page(() => import('@/pages/staff/TemplatesPage'), 'TemplatesPage') },
+              { path: 'profile', ...page(() => import('@/pages/staff/StaffProfilePage'), 'StaffProfilePage') },
               {
                 element: <RequireRole roles={['admin', 'staff']} />,
-                children: [{ path: 'subscriptions/new', element: <SubscriptionNewPage /> }],
+                children: [{ path: 'subscriptions/new', ...page(() => import('@/pages/staff/SubscriptionNewPage'), 'SubscriptionNewPage') }],
               },
               {
                 element: <RequireRole roles={['admin']} />,
                 children: [
-                  { path: 'taxes', element: <TaxesPage /> },
-                  { path: 'discounts', element: <DiscountsPage /> },
-                  { path: 'users', element: <UsersPage /> },
-                  { path: 'users/import', element: <UserImportPage /> },
+                  { path: 'taxes', ...page(() => import('@/pages/staff/TaxesPage'), 'TaxesPage') },
+                  { path: 'discounts', ...page(() => import('@/pages/staff/DiscountsPage'), 'DiscountsPage') },
+                  { path: 'users', ...page(() => import('@/pages/staff/UsersPage'), 'UsersPage') },
+                  { path: 'users/import', ...page(() => import('@/pages/staff/UserImportPage'), 'UserImportPage') },
                 ],
               },
             ],

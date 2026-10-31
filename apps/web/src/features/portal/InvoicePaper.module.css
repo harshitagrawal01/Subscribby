@@ -1,0 +1,145 @@
+/* A paper-style invoice that prints on its own. */
+
+.paper {
+  background: #fff;
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md);
+  padding: 48px 56px;
+  color: var(--mantine-color-text);
+}
+@media (max-width: 48em) {
+  .paper {
+    padding: 28px 20px;
+  }
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+.company {
+  max-width: 340px;
+}
+.docTitle {
+  text-align: right;
+}
+
+.parties {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 32px;
+  padding: 28px 0;
+}
+@media (max-width: 48em) {
+  .parties {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .docTitle {
+    text-align: left;
+  }
+}
+.label {
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+  margin-bottom: 4px;
+}
+.meta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 20px;
+  font-size: var(--mantine-font-size-sm);
+}
+.meta dt {
+  color: var(--mantine-color-dimmed);
+}
+.meta dd {
+  margin: 0;
+  text-align: right;
+}
+
+.balanceRow {
+  margin-top: 10px;
+  padding: 12px 14px !important;
+  background: var(--mantine-color-body);
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+.balanceRow dt {
+  color: var(--mantine-color-text) !important;
+}
+.balanceDue dd {
+  color: var(--mantine-color-ink-8);
+}
+.balanceOverdue dd {
+  color: #b42318;
+}
+
+.payments {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.foot {
+  margin-top: 36px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+}
+
+/* Print only the invoice: hide everything, then show the paper and pin it to the page corner. */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  :global(body *) {
+    visibility: hidden;
+  }
+  .paper,
+  .paper * {
+    visibility: visible;
+  }
+  .paper {
+    position: absolute;
+    inset: 0 0 auto 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+  .paper a {
+    color: inherit;
+    text-decoration: none;
+  }
+  /* Keep the desktop layout on paper, even though the page is narrower than a screen. */
+  .head {
+    flex-wrap: nowrap;
+    padding-bottom: 20px;
+  }
+  .docTitle {
+    text-align: right;
+  }
+  .parties {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    padding: 20px 0;
+  }
+  .payments,
+  .foot {
+    break-inside: avoid;
+  }
+  .payments {
+    margin-top: 20px;
+    padding-top: 14px;
+  }
+  .foot {
+    margin-top: 20px;
+  }
+  :global(.mantine-AppShell-header),
+  :global(.mantine-Notifications-root) {
+    display: none !important;
+  }
+}

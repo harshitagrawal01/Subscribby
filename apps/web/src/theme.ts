@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  Drawer,
   Card,
   createTheme,
   Menu,
@@ -83,7 +84,14 @@ export const theme = createTheme({
     Paper: Paper.extend({ defaultProps: { radius: 'md', shadow: 'none' } }),
     Badge: Badge.extend({ defaultProps: { radius: 'xs', variant: 'light', tt: 'none', fw: 500 } }),
     Menu: Menu.extend({ defaultProps: { shadow: 'md', radius: 'sm' } }),
-    Modal: Modal.extend({ defaultProps: { radius: 'md', shadow: 'lg', centered: true } }),
+    Modal: Modal.extend({
+      defaultProps: { radius: 'md', shadow: 'lg', centered: true },
+      styles: { content: { background: '#fff' }, header: { background: '#fff' } },
+    }),
+    Drawer: Drawer.extend({
+      defaultProps: { position: 'right', size: 'lg' },
+      styles: { content: { background: '#fff' }, header: { background: '#fff' } },
+    }),
     Table: Table.extend({ defaultProps: { verticalSpacing: 10, horizontalSpacing: 'md', fz: 'sm' } }),
     Tabs: Tabs.extend({ defaultProps: { color: 'ink' } }),
   },

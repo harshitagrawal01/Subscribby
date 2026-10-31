@@ -1,0 +1,60 @@
+.root {
+  container: lines / inline-size;
+}
+
+.head,
+.row {
+  display: grid;
+  gap: 8px 10px;
+  align-items: start;
+}
+
+.head {
+  padding-bottom: 6px;
+  font-size: var(--mantine-font-size-xs);
+  color: var(--mantine-color-dimmed);
+}
+
+.row {
+  padding: 10px 0;
+  border-top: 1px solid var(--mantine-color-gray-1);
+}
+
+.head + .row {
+  border-top: 0;
+}
+
+.right {
+  text-align: right;
+}
+
+.amount {
+  padding-top: 7px;
+  text-align: right;
+  min-height: 36px;
+}
+
+.remove {
+  padding-top: 4px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.updating {
+  opacity: 0.55;
+  transition: opacity 120ms ease;
+}
+
+/* Narrow containers (side-by-side layouts, phones): two fields per row. */
+@container lines (max-width: 560px) {
+  .head {
+    display: none;
+  }
+  .row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+  .amount,
+  .remove {
+    padding-top: 0;
+  }
+}

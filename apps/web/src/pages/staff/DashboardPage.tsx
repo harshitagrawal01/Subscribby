@@ -1,5 +1,6 @@
-import { Anchor, Box, Button, Group, Select, Skeleton, Stack, Table, Text, Title } from '@mantine/core'
+import { Anchor, Box, Button, Group, Menu, Select, Skeleton, Stack, Table, Text, Title } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
+import { IconChevronDown, IconDownload } from '@tabler/icons-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -7,11 +8,15 @@ import { Link, useNavigate } from 'react-router'
 import { PageHeader } from '@/components/PageHeader'
 import { QueryState } from '@/components/QueryState'
 import { staffPath } from '@/features/auth/staff-base'
+import { CustomerSelect } from '@/features/billing/CustomerSelect'
+import { PlansPanel, RevenuePanel } from '@/features/billing/DashboardCharts'
+import { downloadCsv, type ExportType } from '@/features/billing/download'
 import { isApiError } from '@/lib/api/client'
-import { invoicesApi, paymentsApi, reportsApi } from '@/lib/api/endpoints'
+import { invoicesApi, paymentsApi, plansApi, reportsApi } from '@/lib/api/endpoints'
 import type { AgingBucket, InvoiceListItem } from '@/lib/api/types'
 import { formatDate, formatMoney } from '@/lib/format'
 import { PAYMENT_METHOD_LABELS } from '@/lib/labels'
+import { notifyError } from '@/lib/notify'
 import { tokens } from '@/theme'
 
 const RANGES = {
@@ -118,21 +123,45 @@ function SendReminder({ invoice }: { invoice: InvoiceListItem }) {
   )
 }
 
+const EXPORTS: { type: ExportType; label: string }[] = [
+  { type: 'invoices', label: 'Invoices' },
+  { type: 'payments', label: 'Payments' },
+  { type: 'subscriptions', label: 'Subscriptions' },
+]
+
 export function DashboardPage() {
   const navigate = useNavigate()
   const [range, setRange] = useState<RangeKey>('this_month')
+  const [planId, setPlanId] = useState<string | undefined>()
+  const [customerId, setCustomerId] = useState<string | undefined>()
   const { from, to } = RANGES[range].get()
-  const filters = { from: from.format('YYYY-MM-DD'), to: to.format('YYYY-MM-DD') }
+  const scope = { planId, customerId }
+  const filters = { from: from.format('YYYY-MM-DD'), to: to.format('YYYY-MM-DD'), ...scope }
 
   const summary = useQuery({ queryKey: ['reports', 'summary', filters], queryFn: () => reportsApi.summary(filters) })
-  const aging = useQuery({ queryKey: ['reports', 'aging'], queryFn: () => reportsApi.aging() })
+  const aging = useQuery({ queryKey: ['reports', 'aging', scope], queryFn: () => reportsApi.aging(scope) })
   const overdue = useQuery({
-    queryKey: ['invoices', { overdue: true, sort: '-daysOverdue', limit: 6 }],
-    queryFn: () => invoicesApi.list({ overdue: true, sort: '-daysOverdue', limit: 6 }),
+    queryKey: ['invoices', { overdue: true, sort: '-daysOverdue', limit: 6, customerId }],
+    queryFn: () => invoicesApi.list({ overdue: true, sort: '-daysOverdue', limit: 6, customerId }),
   })
   const payments = useQuery({
-    queryKey: ['payments', { sort: '-paymentDate', limit: 6 }],
-    queryFn: () => paymentsApi.list({ sort: '-paymentDate', limit: 6 }),
+    queryKey: ['payments', { sort: '-paymentDate', limit: 6, customerId }],
+    queryFn: () => paymentsApi.list({ sort: '-paymentDate', limit: 6, customerId }),
+  })
+  const plans = useQuery({ queryKey: ['plans', 'options'], queryFn: () => plansApi.list({ limit: 100 }) })
+
+  // Each export gets the filters its list endpoint understands.
+  const exportCsv = useMutation({
+    mutationFn: (type: ExportType) =>
+      downloadCsv(
+        type,
+        type === 'invoices'
+          ? { customerId, invoiceFrom: filters.from, invoiceTo: filters.to }
+          : type === 'payments'
+            ? { customerId, dateFrom: filters.from, dateTo: filters.to }
+            : { customerId, planId },
+      ),
+    onError: (error) => notifyError(error, 'The export failed. Try again.'),
   })
   const s = summary.data
   const periodName = range === 'last_90' ? 'the last 90 days' : from.format('MMMM')
@@ -143,14 +172,51 @@ export function DashboardPage() {
         title="Dashboard"
         description={`${range === 'last_90' ? 'Last 90 days' : from.format('MMMM YYYY')} · updated ${dayjs().format('D MMM, h:mm A')}`}
         actions={
-          <Select
-            aria-label="Period"
-            w={160}
-            value={range}
-            onChange={(v) => v && setRange(v as RangeKey)}
-            allowDeselect={false}
-            data={Object.entries(RANGES).map(([value, r]) => ({ value, label: r.label }))}
-          />
+          <>
+            <Select
+              aria-label="Plan"
+              placeholder="All plans"
+              clearable
+              w={160}
+              data={plans.data?.data.map((p) => ({ value: p.id, label: p.name })) ?? []}
+              value={planId ?? null}
+              onChange={(v) => setPlanId(v ?? undefined)}
+            />
+            <CustomerSelect
+              aria-label="Customer"
+              placeholder="All customers"
+              value={customerId}
+              onChange={setCustomerId}
+              w={190}
+            />
+            <Select
+              aria-label="Period"
+              w={150}
+              value={range}
+              onChange={(v) => v && setRange(v as RangeKey)}
+              allowDeselect={false}
+              data={Object.entries(RANGES).map(([value, r]) => ({ value, label: r.label }))}
+            />
+            <Menu position="bottom-end">
+              <Menu.Target>
+                <Button
+                  variant="default"
+                  leftSection={<IconDownload size={16} stroke={1.5} />}
+                  rightSection={<IconChevronDown size={14} stroke={1.5} />}
+                  loading={exportCsv.isPending}
+                >
+                  Export CSV
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {EXPORTS.map((e) => (
+                  <Menu.Item key={e.type} onClick={() => exportCsv.mutate(e.type)}>
+                    {e.label}
+                  </Menu.Item>
+                ))}
+              </Menu.Dropdown>
+            </Menu>
+          </>
         }
       />
 
@@ -199,10 +265,23 @@ export function DashboardPage() {
               />
             </>
           ) : (
-            <QueryState isLoading={summary.isLoading} error={summary.error} onRetry={() => summary.refetch()} rows={4} what="figures" />
+            <QueryState
+              isLoading={summary.isLoading}
+              error={summary.error}
+              onRetry={() => summary.refetch()}
+              rows={4}
+              what="figures"
+            />
           )}
         </section>
+      </div>
 
+      <div className="dash-grid" style={{ marginTop: 16 }}>
+        <RevenuePanel filters={scope} />
+        <PlansPanel filters={scope} />
+      </div>
+
+      <div className="dash-grid" style={{ marginTop: 16 }}>
         <section className="panel">
           <Group justify="space-between" px={20} pt={16} pb={10}>
             <Title order={2} fz={15}>
@@ -212,7 +291,12 @@ export function DashboardPage() {
               All overdue
             </Anchor>
           </Group>
-          <QueryState isLoading={overdue.isLoading} error={overdue.error} onRetry={() => overdue.refetch()} what="overdue invoices" />
+          <QueryState
+            isLoading={overdue.isLoading}
+            error={overdue.error}
+            onRetry={() => overdue.refetch()}
+            what="overdue invoices"
+          />
           {overdue.data &&
             (overdue.data.data.length ? (
               <Table.ScrollContainer minWidth={560}>

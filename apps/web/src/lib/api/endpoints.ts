@@ -3,6 +3,7 @@
 import { http, type QueryParams } from './client'
 import type {
   AgingBucket,
+  AppliedDiscount,
   ApiResponse,
   AuthUser,
   BillingPeriod,
@@ -172,7 +173,9 @@ export const subscriptionsApi = {
   get: (id: Id) => unwrap(http.get<ApiResponse<Subscription>>(`/subscriptions/${id}`)),
   create: (body: SubscriptionInput) => unwrap(http.post<ApiResponse<Subscription>>('/subscriptions', body)),
   preview: (body: SubscriptionInput) =>
-    unwrap(http.post<ApiResponse<{ lines: PricedLine[]; totals: Totals }>>('/subscriptions/preview', body)),
+    unwrap(
+      http.post<ApiResponse<{ lines: PricedLine[]; totals: Totals; orderDiscount: AppliedDiscount | null }>>('/subscriptions/preview', body),
+    ),
   update: (id: Id, body: Partial<SubscriptionInput>) => unwrap(http.patch<ApiResponse<Subscription>>(`/subscriptions/${id}`, body)),
   remove: (id: Id) => http.delete(`/subscriptions/${id}`),
   /** send, confirm, activate, pause, resume, renew ({ newExpiryDate }), close ({ note }), cancel */
@@ -236,7 +239,7 @@ export const reportsApi = {
   summary: (filters: ReportFilters = {}) => unwrap(http.get<ApiResponse<ReportSummary>>('/reports/summary', q(filters))),
   revenueByMonth: (filters: { from?: string; to?: string; planId?: Id; customerId?: Id } = {}) =>
     unwrap(http.get<ApiResponse<RevenueMonth[]>>('/reports/revenue-by-month', q(filters))),
-  subscriptionsByPlan: (filters: { status?: SubscriptionStatus } = {}) =>
+  subscriptionsByPlan: (filters: { status?: SubscriptionStatus; planId?: Id; customerId?: Id } = {}) =>
     unwrap(http.get<ApiResponse<PlanBreakdown[]>>('/reports/subscriptions-by-plan', q(filters))),
   aging: (filters: ReportFilters = {}) => unwrap(http.get<ApiResponse<AgingBucket[]>>('/reports/aging', q(filters))),
   exportCsv: (type: 'invoices' | 'payments' | 'subscriptions', filters: QueryParams = {}) =>
